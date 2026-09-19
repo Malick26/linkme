@@ -1,0 +1,23 @@
+@use 'editor' as ed;
+@include ed.base;
+
+// Mise en page « édition + aperçu » : 2 colonnes en desktop, onglets Édition/Aperçu sur mobile (brief §6.3).
+.split { display: grid; grid-template-columns: 1fr; gap: 20px; padding: 16px 16px 96px; }
+.split__tabs { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 12px; background: var(--ed-panel); border: 1px solid var(--ed-border); }
+.split__tabs button { min-height: 40px; border: 0; border-radius: 9px; background: transparent; color: var(--ed-muted); font-weight: 600; cursor: pointer; }
+.split__tabs button[aria-selected='true'] { background: var(--ed-panel-2); color: var(--ed-text); }
+.split__edit { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.split__preview { min-width: 0; }
+.split[data-tab='edit'] .split__preview { display: none; }
+.split[data-tab='preview'] .split__edit { display: none; }
+.split__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.split__actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+@media (min-width: 1024px) {
+  .split { grid-template-columns: minmax(0, 1fr) minmax(360px, 460px); padding: 28px 28px 40px; align-items: start; }
+  .split__tabs { display: none; }
+  .split[data-tab] .split__edit, .split[data-tab] .split__preview { display: flex; }
+  .split[data-tab] .split__preview { display: block; position: sticky; top: 20px; }
+}
+@media (min-width: 1440px) {
+  .split { grid-template-columns: minmax(0, 1fr) 520px; }
+}

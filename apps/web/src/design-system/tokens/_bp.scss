@@ -10,7 +10,7 @@
       @content;
     }
   }
-  @container lm (min-width: $min) {
+  @container lm (min-width: #{$min}) {
     .lm-page--embedded {
       @content;
     }
@@ -24,7 +24,7 @@
       @content;
     }
   }
-  @container lm (min-width: $min) {
+  @container lm (min-width: #{$min}) {
     .lm-page--embedded .lm-scope {
       @content;
     }

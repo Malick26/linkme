@@ -1,0 +1,222 @@
+@if (!store.loading()) {
+  @let th = t();
+  <div class="split" [attr.data-tab]="tab()">
+    <div class="split__tabs" role="tablist">
+      <button role="tab" [attr.aria-selected]="tab() === 'edit'" (click)="tab.set('edit')">{{ 'ed.tabEdit' | t }}</button>
+      <button role="tab" [attr.aria-selected]="tab() === 'preview'" (click)="tab.set('preview')">{{ 'ed.tabPreview' | t }}</button>
+    </div>
+
+    <div class="split__edit">
+      <div class="split__head">
+        <h1>{{ 'theme.title' | t }}</h1>
+        <div class="split__actions">
+          <button type="button" class="ed-btn ed-btn--icon" (click)="store.undo()" [disabled]="!store.canUndo()" [attr.aria-label]="'theme.undo' | t" [title]="'theme.undo' | t"><lm-icon name="undo-2" [size]="18" /></button>
+          <button type="button" class="ed-btn ed-btn--icon" (click)="store.redo()" [disabled]="!store.canRedo()" [attr.aria-label]="'theme.redo' | t" [title]="'theme.redo' | t"><lm-icon name="redo-2" [size]="18" /></button>
+          <button type="button" class="ed-btn" (click)="store.resetToPreset()">{{ 'theme.reset' | t }}</button>
+          <button type="button" class="ed-btn ed-btn--primary" (click)="publish()" [disabled]="publishing() || !store.hasUnpublishedChanges()" data-testid="publish">
+            {{ (publishing() ? 'ed.publishing' : store.hasUnpublishedChanges() ? 'ed.publish' : 'ed.published') | t }}
+          </button>
+        </div>
+      </div>
+      <p class="te__state" role="status">
+        @switch (store.saveState()) {
+          @case ('saving') { <span class="ed-chip">{{ 'ed.saving' | t }}</span> }
+          @case ('saved') { <span class="ed-chip ed-chip--ok">{{ 'ed.saved' | t }}</span> }
+          @case ('error') { <span class="ed-chip ed-chip--bad">{{ 'ed.saveError' | t }}</span> }
+        }
+        @if (store.hasUnpublishedChanges()) {
+          <span class="ed-chip ed-chip--warn">{{ 'ed.unpublished' | t }}</span>
+        }
+      </p>
+      @if (error()) {
+        <p class="ed-error" role="alert">{{ error() }}</p>
+      }
+
+      <!-- Garde-fou de contraste (WCAG 2.2 AA) -->
+      @if (worst(); as w) {
+        <div class="te__warn" role="alert" data-testid="contrast-warning">
+          <lm-icon name="triangle-alert" [size]="22" />
+          <div>
+            <p>{{ 'theme.contrast.warn' | t: { ratio: w.ratio } }} — {{ areaKey(w.area) | t }}</p>
+            <button type="button" class="ed-btn ed-btn--primary" (click)="fixContrast()" data-testid="contrast-fix"><lm-icon name="wand-sparkles" [size]="18" />{{ 'theme.contrast.fix' | t }}</button>
+          </div>
+        </div>
+      } @else {
+        <p class="ed-success te__ok"><lm-icon name="circle-check" [size]="16" /> {{ 'theme.contrast.ok' | t }}</p>
+      }
+
+      <!-- Presets -->
+      <section class="ed-card">
+        <h2>{{ 'theme.presets' | t }}</h2>
+        <div class="te__presets" role="radiogroup" [attr.aria-label]="'theme.presets' | t">
+          @for (p of presets; track p.id) {
+            <button type="button" role="radio" class="te__preset" [attr.aria-checked]="th.preset === p.id" (click)="store.applyPreset(p.id)" [attr.data-testid]="'preset-' + p.id">
+              <span class="te__sw" [style.background]="p.config.colors.overlay"><i [style.background]="p.config.colors.accent"></i><i [style.background]="p.config.colors.text"></i><i [style.background]="p.config.colors.cardBg"></i></span>
+              <span>{{ p.name }}</span>
+            </button>
+          }
+        </div>
+      </section>
+
+      <!-- Couleurs -->
+      <section class="ed-card">
+        <h2>{{ 'theme.colors' | t }}</h2>
+        <div class="te__grid">
+          <ed-color-field [label]="'theme.color.accent' | t" [value]="th.colors.accent" (changed)="color('accent', $event)" />
+          <ed-color-field [label]="'theme.color.text' | t" [value]="th.colors.text" (changed)="color('text', $event)" />
+          <ed-color-field [label]="'theme.color.textMuted' | t" [value]="th.colors.textMuted" [alpha]="true" [alphaLabel]="'theme.opacity' | t" (changed)="color('textMuted', $event)" />
+          <ed-color-field [label]="'theme.color.statGlow' | t" [value]="th.colors.statGlow" (changed)="color('statGlow', $event)" />
+          <div class="te__pair">
+            <ed-color-field [label]="'theme.color.cardBg' | t" [value]="th.colors.cardBg" (changed)="color('cardBg', $event)" />
+            <label class="ed-field"><span>{{ 'theme.opacity' | t }} <b>{{ th.colors.cardBgOpacity }}</b></span>
+              <input type="range" min="0" max="1" step="0.02" [value]="th.colors.cardBgOpacity" (input)="color('cardBgOpacity', $any($event.target).valueAsNumber)" data-testid="cardBgOpacity" />
+            </label>
+          </div>
+          <div class="te__pair">
+            <ed-color-field [label]="'theme.color.cardBorder' | t" [value]="th.colors.cardBorder" (changed)="color('cardBorder', $event)" />
+            <label class="ed-field"><span>{{ 'theme.opacity' | t }} <b>{{ th.colors.cardBorderOpacity }}</b></span>
+              <input type="range" min="0" max="1" step="0.02" [value]="th.colors.cardBorderOpacity" (input)="color('cardBorderOpacity', $any($event.target).valueAsNumber)" />
+            </label>
+          </div>
+          <div class="te__pair">
+            <ed-color-field [label]="'theme.color.overlay' | t" [value]="th.colors.overlay" (changed)="color('overlay', $event)" />
+            <label class="ed-field"><span>{{ 'theme.overlayStrength' | t }} <b>{{ th.colors.overlayStrength }}</b></span>
+              <input type="range" min="0" max="1" step="0.02" [value]="th.colors.overlayStrength" (input)="color('overlayStrength', $any($event.target).valueAsNumber)" data-testid="overlayStrength" />
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <!-- Fond -->
+      <section class="ed-card">
+        <h2>{{ 'theme.background' | t }}</h2>
+        <div class="ed-seg" role="group" [attr.aria-label]="'theme.background' | t">
+          @for (bt of bgTypes; track bt) {
+            <button type="button" [attr.aria-pressed]="th.background.type === bt" (click)="store.updateTheme(fnBgType(bt))">{{ key('theme.bg.', bt) | t }}</button>
+          }
+        </div>
+        @switch (th.background.type) {
+          @case ('image') {
+            <ed-image-upload kind="background" [wide]="true" [removable]="false" [value]="th.background.imageId" [image]="bgImage()" [label]="'theme.background' | t"
+                             (uploaded)="store.addImage($event)" (changed)="setBgImage($event)" />
+            @if (bgUrl(); as url) {
+              <p class="ed-muted">{{ 'theme.bg.focal' | t }}</p>
+              <div class="te__focal" role="slider" tabindex="0" [attr.aria-label]="'theme.bg.focal' | t" [attr.aria-valuetext]="focalText()"
+                   (click)="focal($event)" (keydown)="focalKey($event)">
+                <img [src]="url" alt="" />
+                <span class="te__dot" [style.left.%]="th.background.focal.x * 100" [style.top.%]="th.background.focal.y * 100"></span>
+              </div>
+              <div class="te__crops">
+                <figure><div class="te__crop te__crop--m" [style.background-image]="'url(' + url + ')'" [style.background-position]="th.background.focal.x * 100 + '% ' + th.background.focal.y * 100 + '%'"></div><figcaption>{{ 'theme.bg.cropMobile' | t }}</figcaption></figure>
+                <figure><div class="te__crop te__crop--d" [style.background-image]="'url(' + url + ')'" [style.background-position]="th.background.focal.x * 100 + '% ' + th.background.focal.y * 100 + '%'"></div><figcaption>{{ 'theme.bg.cropDesktop' | t }}</figcaption></figure>
+              </div>
+            }
+            <label class="ed-field"><span>{{ 'theme.bg.blur' | t }} <b>{{ th.background.blur }} px</b></span>
+              <input type="range" min="0" max="30" step="1" [value]="th.background.blur" (input)="store.updateTheme(fnBlur($any($event.target).valueAsNumber))" />
+            </label>
+          }
+          @case ('gradient') {
+            <div class="te__grid">
+              <ed-color-field [label]="'theme.bg.from' | t" [value]="th.background.gradientFrom ?? th.colors.overlay" (changed)="store.updateTheme(fnBg('gradientFrom', $event))" />
+              <ed-color-field [label]="'theme.bg.to' | t" [value]="th.background.gradientTo ?? th.colors.accent" (changed)="store.updateTheme(fnBg('gradientTo', $event))" />
+              <label class="ed-field"><span>{{ 'theme.bg.angle' | t }} <b>{{ th.background.gradientAngle ?? 180 }}°</b></span>
+                <input type="range" min="0" max="360" step="5" [value]="th.background.gradientAngle ?? 180" (input)="store.updateTheme(fnBg('gradientAngle', $any($event.target).valueAsNumber))" />
+              </label>
+            </div>
+          }
+          @case ('solid') {
+            <ed-color-field [label]="'theme.bg.solid' | t" [value]="th.background.color ?? th.colors.overlay" (changed)="store.updateTheme(fnBg('color', $event))" />
+          }
+        }
+      </section>
+
+      <!-- Typographie -->
+      <section class="ed-card">
+        <h2>{{ 'theme.typography' | t }}</h2>
+        <div class="te__fonts" role="radiogroup" [attr.aria-label]="'theme.fontPair' | t">
+          @for (fp of fontPairs; track fp.id) {
+            <button type="button" role="radio" class="te__font" [attr.aria-checked]="currentPair() === fp.id" (click)="setPair(fp.id)">
+              <span class="te__font-sample" [style.font-family]="fontFamily(fp.typography.display)">Malick</span>
+              <span>{{ fp.label }}</span>
+            </button>
+          }
+        </div>
+        <label class="ed-field"><span>{{ 'theme.nameScale' | t }} <b>{{ th.typography.nameScale }}×</b></span>
+          <input type="range" min="0.7" max="1.3" step="0.05" [value]="th.typography.nameScale" (input)="store.updateTheme(fnTypo('nameScale', $any($event.target).valueAsNumber))" />
+        </label>
+      </section>
+
+      <!-- Cartes -->
+      <section class="ed-card">
+        <h2>{{ 'theme.cards' | t }}</h2>
+        <div class="ed-stack">
+          <div class="ed-field"><span>{{ 'theme.cards.style' | t }}</span>
+            <div class="ed-seg">
+              @for (s of cardStyles; track s) {
+                <button type="button" [attr.aria-pressed]="th.cards.style === s" (click)="store.updateTheme(fnCards('style', s))">{{ key('theme.cards.', s) | t }}</button>
+              }
+            </div>
+          </div>
+          <label class="ed-field"><span>{{ 'theme.cards.radius' | t }} <b>{{ th.cards.radius }} px</b></span>
+            <input type="range" min="0" max="36" step="1" [value]="th.cards.radius" (input)="store.updateTheme(fnCards('radius', $any($event.target).valueAsNumber))" data-testid="radius" />
+          </label>
+          <label class="ed-field"><span>{{ 'theme.cards.blur' | t }} <b>{{ th.cards.blur }} px</b></span>
+            <input type="range" min="0" max="40" step="1" [value]="th.cards.blur" (input)="store.updateTheme(fnCards('blur', $any($event.target).valueAsNumber))" />
+          </label>
+          <div class="ed-row">
+            <label class="ed-switch"><input type="checkbox" [checked]="th.cards.showThumbnail" (change)="store.updateTheme(fnCards('showThumbnail', $any($event.target).checked))" />{{ 'theme.cards.thumbnail' | t }}</label>
+            <div class="ed-seg">
+              <button type="button" [attr.aria-pressed]="th.cards.thumbnailSide === 'left'" (click)="store.updateTheme(fnCards('thumbnailSide', 'left'))">{{ 'theme.cards.thumbLeft' | t }}</button>
+              <button type="button" [attr.aria-pressed]="th.cards.thumbnailSide === 'right'" (click)="store.updateTheme(fnCards('thumbnailSide', 'right'))">{{ 'theme.cards.thumbRight' | t }}</button>
+            </div>
+          </div>
+          <div class="ed-field"><span>{{ 'theme.cards.density' | t }}</span>
+            <div class="ed-seg">
+              <button type="button" [attr.aria-pressed]="th.cards.density === 'compact'" (click)="store.updateTheme(fnCards('density', 'compact'))">{{ 'theme.cards.compact' | t }}</button>
+              <button type="button" [attr.aria-pressed]="th.cards.density === 'comfortable'" (click)="store.updateTheme(fnCards('density', 'comfortable'))">{{ 'theme.cards.comfortable' | t }}</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Réseaux -->
+      <section class="ed-card">
+        <h2>{{ 'theme.social' | t }}</h2>
+        <div class="ed-stack">
+          <div class="ed-field"><span>{{ 'theme.social.position' | t }}</span>
+            <div class="ed-seg">
+              <button type="button" [attr.aria-pressed]="th.social.position === 'right'" (click)="store.updateTheme(fnSocial('position', 'right'))">{{ 'theme.social.right' | t }}</button>
+              <button type="button" [attr.aria-pressed]="th.social.position === 'left'" (click)="store.updateTheme(fnSocial('position', 'left'))">{{ 'theme.social.left' | t }}</button>
+              <button type="button" [attr.aria-pressed]="th.social.position === 'below-stats'" (click)="store.updateTheme(fnSocial('position', 'below-stats'))">{{ 'theme.social.below' | t }}</button>
+            </div>
+          </div>
+          <div class="ed-field"><span>{{ 'theme.social.shape' | t }}</span>
+            <div class="ed-seg">
+              @for (s of shapes; track s) {
+                <button type="button" [attr.aria-pressed]="th.social.shape === s" (click)="store.updateTheme(fnSocial('shape', s))">{{ key('theme.social.', s) | t }}</button>
+              }
+            </div>
+          </div>
+          <label class="ed-switch"><input type="checkbox" [checked]="th.social.showCounts" (change)="store.updateTheme(fnSocial('showCounts', $any($event.target).checked))" />{{ 'theme.social.counts' | t }}</label>
+        </div>
+      </section>
+
+      <!-- Sections -->
+      <section class="ed-card">
+        <h2>{{ 'theme.sections' | t }}</h2>
+        <div class="ed-grid2">
+          <label class="ed-switch"><input type="checkbox" [checked]="th.layout.showTagline" (change)="store.updateTheme(fnLayout('showTagline', $any($event.target).checked))" />{{ 'theme.show.tagline' | t }}</label>
+          <label class="ed-switch"><input type="checkbox" [checked]="th.layout.showCrown" (change)="store.updateTheme(fnLayout('showCrown', $any($event.target).checked))" />{{ 'theme.show.crown' | t }}</label>
+          <label class="ed-switch"><input type="checkbox" [checked]="th.layout.showStats" (change)="store.updateTheme(fnLayout('showStats', $any($event.target).checked))" data-testid="showStats" />{{ 'theme.show.stats' | t }}</label>
+          <label class="ed-switch"><input type="checkbox" [checked]="th.layout.showCategories" (change)="store.updateTheme(fnLayout('showCategories', $any($event.target).checked))" />{{ 'theme.show.categories' | t }}</label>
+          <label class="ed-switch"><input type="checkbox" [checked]="th.motion.enabled" (change)="store.updateTheme(fnMotion($any($event.target).checked))" />{{ 'theme.motion' | t }}</label>
+        </div>
+        <label class="ed-field"><span>{{ 'theme.footerText' | t }}</span>
+          <input [value]="th.layout.footerText" maxlength="40" (input)="store.updateTheme(fnLayout('footerText', $any($event.target).value))" />
+        </label>
+      </section>
+    </div>
+
+    <aside class="split__preview"><ed-preview-frame [page]="store.previewPage()" /></aside>
+  </div>
+}

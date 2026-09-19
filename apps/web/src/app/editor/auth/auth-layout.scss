@@ -1,0 +1,14 @@
+@use 'editor' as ed;
+@include ed.base;
+
+.au { min-height: 100svh; display: grid; place-items: center; padding: 24px 16px; background: var(--ed-bg); }
+.au__card { width: 100%; max-width: 420px; }
+.au__logo { display: flex; justify-content: center; margin-bottom: 20px; color: var(--ed-text); }
+.au__title { text-align: center; }
+.au__sub { text-align: center; margin-bottom: 20px; }
+.au__form { display: flex; flex-direction: column; gap: 14px; }
+.au__links { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-top: 16px; font-size: 14px; }
+.au__links a { color: var(--ed-accent); min-height: 44px; display: inline-flex; align-items: center; }
+.au__prefix { display: flex; align-items: stretch; border: 1px solid var(--ed-border); border-radius: 10px; background: var(--ed-bg); overflow: hidden; }
+.au__prefix span { display: flex; align-items: center; padding: 0 10px; color: var(--ed-muted); font-size: 14px; border-right: 1px solid var(--ed-border); white-space: nowrap; }
+.au__prefix input { border: 0 !important; border-radius: 0 !important; }
