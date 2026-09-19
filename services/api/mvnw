@@ -1,0 +1,18 @@
+#!/bin/sh
+# Maven Wrapper minimal (type « only-script ») : télécharge Maven une fois dans ~/.m2/wrapper puis l'exécute.
+set -e
+BASEDIR=$(cd "$(dirname "$0")" && pwd)
+PROPS="$BASEDIR/.mvn/wrapper/maven-wrapper.properties"
+URL=$(sed -n 's/^distributionUrl=//p' "$PROPS" | tr -d '\r')
+NAME=$(basename "$URL" -bin.zip)
+DEST="${MAVEN_USER_HOME:-$HOME/.m2}/wrapper/dists/$NAME"
+MVN="$DEST/$NAME/bin/mvn"
+if [ ! -x "$MVN" ]; then
+  echo "Téléchargement de $NAME…" >&2
+  mkdir -p "$DEST"
+  TMP="$DEST/dist.zip"
+  if command -v curl >/dev/null 2>&1; then curl -fsSL -o "$TMP" "$URL"; else wget -q -O "$TMP" "$URL"; fi
+  (cd "$DEST" && unzip -q -o dist.zip && rm -f dist.zip)
+  chmod +x "$MVN"
+fi
+exec "$MVN" -f "$BASEDIR/pom.xml" "$@"

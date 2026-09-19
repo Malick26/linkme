@@ -1,0 +1,19 @@
+# Production : jamais de mock ni de seed par défaut, cookies Secure, pas de docs OpenAPI publiques.
+app:
+  seed-demo: ${SEED_DEMO:false}
+  payments:
+    mock:
+      enabled: false
+springdoc:
+  api-docs:
+    enabled: ${OPENAPI_DOCS_ENABLED:false}
+server:
+  servlet:
+    session:
+      cookie:
+        secure: true
+# logs structurés JSON (brief §10 « logs structurés »)
+logging:
+  structured:
+    format:
+      console: logstash

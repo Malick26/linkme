@@ -1,0 +1,20 @@
+app:
+  public-base-url: http://localhost:4200
+  seed-demo: true
+  payments:
+    default-provider: mock
+    mock:
+      enabled: true
+      webhook-secret: test-mock-secret
+  media:
+    dir: ${java.io.tmpdir}/linkme-test-media
+  rate-limits:
+    auth-per-minute: 1000
+    contact-per-10-minutes: 1000
+    checkout-per-minute: 1000
+    events-per-minute: 1000
+server:
+  servlet:
+    session:
+      cookie:
+        secure: false

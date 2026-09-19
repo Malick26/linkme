@@ -1,0 +1,12 @@
+# Profil de développement : seed /malick, paiements simulés, uploads locaux, logs lisibles.
+app:
+  seed-demo: ${SEED_DEMO:true}
+  payments:
+    mock:
+      enabled: ${PAYMENT_MOCK_ENABLED:true}
+      webhook-secret: ${PAYMENT_MOCK_WEBHOOK_SECRET:dev-mock-secret}
+server:
+  servlet:
+    session:
+      cookie:
+        secure: ${SESSION_COOKIE_SECURE:false}

@@ -235,6 +235,11 @@ def main():
         save_variants(thumb(k), f"thumb-{k}", [240, 480], manifest)
     with open(os.path.join(OUT, "seed-images.json"), "w") as f:
         json.dump(manifest, f, indent=1)
+    # copie pour le seed back-end (services/api) — mêmes dimensions et placeholders
+    api_seed = os.path.join(ROOT, "services", "api", "src", "main", "resources", "seed")
+    os.makedirs(api_seed, exist_ok=True)
+    with open(os.path.join(api_seed, "seed-images.json"), "w") as f:
+        json.dump(manifest, f, indent=1)
     print("ok", OUT)
 
 

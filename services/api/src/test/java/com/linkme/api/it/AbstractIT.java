@@ -1,0 +1,67 @@
+package com.linkme.api.it;
+
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Map;
+import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpSession;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.testcontainers.containers.PostgreSQLContainer;
+
+/** Base des tests d'intégration : vraie base PostgreSQL (Testcontainers), migrations Flyway, seed /malick. */
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles({"dev", "test"})
+public abstract class AbstractIT {
+    /** Conteneur unique partagé par toutes les classes (le contexte Spring est mis en cache entre classes). */
+    @ServiceConnection
+    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
+
+    static {
+        POSTGRES.start();
+    }
+
+    @Autowired
+    protected MockMvc mvc;
+
+    @Autowired
+    protected ObjectMapper mapper;
+
+    protected String json(Object o) throws Exception {
+        return mapper.writeValueAsString(o);
+    }
+
+    protected JsonNode body(MvcResult r) throws Exception {
+        return mapper.readTree(r.getResponse().getContentAsString());
+    }
+
+    /** Inscrit un créateur unique et renvoie sa session authentifiée. */
+    protected MockHttpSession register(String handle) throws Exception {
+        MvcResult r = mvc.perform(post("/api/auth/register").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of("email", handle + "-" + UUID.randomUUID().toString().substring(0, 6) + "@test.sn",
+                                "password", "motdepasse-solide", "handle", handle, "displayName", "Créateur " + handle, "acceptTerms", true))))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return (MockHttpSession) r.getRequest().getSession(false);
+    }
+
+    protected JsonNode getJson(String url, MockHttpSession session) throws Exception {
+        return body(mvc.perform(get(url).session(session)).andExpect(status().isOk()).andReturn());
+    }
+
+    protected static String uniqueHandle(String prefix) {
+        return (prefix + UUID.randomUUID().toString().replace("-", "")).substring(0, 20);
+    }
+}
