@@ -1,0 +1,67 @@
+@if (failed()) {
+  <app-not-found />
+} @else if (page.hasValue() && detail.hasValue()) {
+  @let p = page.value()!;
+  @let d = detail.value()!;
+  <lm-block-shell [page]="p" [heading]="d.block.title" [subheading]="d.block.subtitle">
+    @switch (d.block.type) {
+      @case ('shop') {
+        @if (d.products.length) {
+          <ul class="grid" role="list">
+            @for (prod of d.products; track prod.id) {
+              <li>
+                <a class="prod" [routerLink]="['/', p.profile.handle, 'shop', prod.id]" lmGlassCard>
+                  <span class="prod__img">
+                    @if (prod.images[0]) {
+                      <img [src]="imageUrl(prod.images[0], 480)" [alt]="prod.title" loading="lazy" width="240" height="240" />
+                    }
+                    @if (!prod.available) {
+                      <span class="prod__badge">{{ 'shop.soldOut' | t }}</span>
+                    }
+                  </span>
+                  <span class="prod__title">{{ prod.title }}</span>
+                  <span class="prod__price">{{ formatXof(prod.priceXof) }}</span>
+                </a>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="empty">{{ 'public.block.empty' | t }}</p>
+        }
+      }
+      @case ('contact') {
+        <app-contact-form [handle]="p.profile.handle" [config]="d.block.config ?? {}" />
+      }
+      @default {
+        @if (d.items.length) {
+          <ul class="items" role="list">
+            @for (item of d.items; track item.id) {
+              <li lmGlassCard class="item">
+                @if (embedUrl(item); as src) {
+                  <div class="item__embed" [class.item__embed--audio]="isSpotify(item)">
+                    <iframe [src]="src" [title]="item.title" loading="lazy" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
+                  </div>
+                } @else if (item.image) {
+                  <img class="item__img" [src]="imageUrl(item.image, 800)" alt="" loading="lazy" width="800" height="450" />
+                }
+                <div class="item__body">
+                  <h2 class="item__title">{{ item.title }}</h2>
+                  @if (item.description) {
+                    <p class="item__desc">{{ item.description }}</p>
+                  }
+                  @if (item.url) {
+                    <a class="item__link" [href]="item.url" target="_blank" rel="noopener noreferrer" (click)="click(item)">
+                      {{ 'public.block.open' | t }} <lm-icon name="external-link" [size]="16" />
+                    </a>
+                  }
+                </div>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="empty">{{ 'public.block.empty' | t }}</p>
+        }
+      }
+    }
+  </lm-block-shell>
+}

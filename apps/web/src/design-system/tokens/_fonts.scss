@@ -1,0 +1,25 @@
+// Polices auto-hébergées (OFL) — sous-ensemble latin (accents FR + œ). font-display: swap. (brief §5.3, D15)
+$lm-fonts: (
+  ('Kaushan Script', 'kaushan-script-latin-400-normal', 400),
+  ('Yellowtail', 'yellowtail-latin-400-normal', 400),
+  ('Marck Script', 'marck-script-latin-400-normal', 400),
+  ('Caveat Brush', 'caveat-brush-latin-400-normal', 400),
+  ('Caveat', 'caveat-latin-500-normal', 500),
+  ('Reenie Beanie', 'reenie-beanie-latin-400-normal', 400),
+);
+@each $family, $file, $weight in $lm-fonts {
+  @font-face {
+    font-family: $family;
+    src: url('/fonts/#{$file}.woff2') format('woff2');
+    font-weight: $weight;
+    font-style: normal;
+    font-display: swap;
+  }
+}
+@font-face {
+  font-family: 'Inter';
+  src: url('/fonts/inter-latin-wght-normal.woff2') format('woff2-variations'), url('/fonts/inter-latin-wght-normal.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}

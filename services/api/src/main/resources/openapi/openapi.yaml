@@ -1,0 +1,1456 @@
+openapi: 3.1.0
+info:
+  title: LinkMe API
+  version: 1.0.0
+  description: |
+    Contrat de l'API du hub créateur (source de vérité — ADR 0003).
+    Montants en FCFA (XOF, entiers). Erreurs au format RFC 7807 (`application/problem+json`).
+    Authentification par cookie de session httpOnly `LM_SESSION` ; les requêtes mutantes exigent l'en-tête
+    `X-XSRF-TOKEN` égal au cookie `XSRF-TOKEN`.
+servers:
+  - url: /
+tags:
+  - name: auth
+  - name: profile
+  - name: blocks
+  - name: theme
+  - name: uploads
+  - name: public
+  - name: shop
+  - name: payments
+  - name: analytics
+  - name: account
+
+paths:
+  # ───────────────────────────── Auth
+  /api/auth/csrf:
+    get:
+      tags: [auth]
+      operationId: getCsrf
+      summary: Initialise le cookie XSRF-TOKEN
+      security: []
+      responses:
+        '204': { description: Cookie posé }
+  /api/auth/register:
+    post:
+      tags: [auth]
+      operationId: register
+      summary: "Créer un compte"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '201':
+          description: Compte créé et session ouverte
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Me' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '429': { $ref: '#/components/responses/Problem' }
+  /api/auth/login:
+    post:
+      tags: [auth]
+      operationId: login
+      summary: "Se connecter"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Session ouverte
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Me' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '429': { $ref: '#/components/responses/Problem' }
+  /api/auth/logout:
+    post:
+      tags: [auth]
+      operationId: logout
+      summary: "Se déconnecter"
+      responses:
+        '204': { description: Session fermée }
+  /api/auth/forgot:
+    post:
+      tags: [auth]
+      operationId: forgotPassword
+      summary: "Mot de passe oublié"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ForgotPasswordRequest' }
+      responses:
+        '202': { description: Email envoyé si le compte existe (réponse identique sinon) }
+        '429': { $ref: '#/components/responses/Problem' }
+  /api/auth/reset:
+    post:
+      tags: [auth]
+      operationId: resetPassword
+      summary: "Réinitialiser le mot de passe"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResetPasswordRequest' }
+      responses:
+        '204': { description: Mot de passe modifié }
+        '400': { $ref: '#/components/responses/Problem' }
+  /api/auth/handle-availability:
+    get:
+      tags: [auth]
+      operationId: checkHandle
+      summary: "Disponibilité d'un handle"
+      security: []
+      parameters:
+        - { name: handle, in: query, required: true, schema: { $ref: '#/components/schemas/Handle' } }
+      responses:
+        '200':
+          description: Disponibilité
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [handle, available]
+                properties:
+                  handle: { type: string }
+                  available: { type: boolean }
+                  reason: { type: string, enum: [taken, reserved, invalid] }
+  /api/me:
+    get:
+      tags: [account]
+      operationId: getMe
+      summary: "Utilisateur courant"
+      responses:
+        '200':
+          description: Utilisateur courant
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Me' }
+        '401': { $ref: '#/components/responses/Problem' }
+    delete:
+      tags: [account]
+      operationId: deleteAccount
+      summary: Suppression du compte (loi 2008-12) — anonymise les commandes, supprime le reste
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password: { type: string, maxLength: 128 }
+      responses:
+        '204': { description: Compte supprimé }
+        '401': { $ref: '#/components/responses/Problem' }
+
+  # ───────────────────────────── Profil
+  /api/me/profile:
+    get:
+      tags: [profile]
+      operationId: getProfile
+      summary: "Lire le profil"
+      responses:
+        '200':
+          description: Profil
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Profile' }
+    put:
+      tags: [profile]
+      operationId: updateProfile
+      summary: "Modifier le profil"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProfileUpdate' }
+      responses:
+        '200':
+          description: Profil mis à jour
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Profile' }
+        '400': { $ref: '#/components/responses/Problem' }
+  /api/me/socials:
+    get:
+      tags: [profile]
+      operationId: getSocials
+      summary: "Lire les réseaux"
+      responses:
+        '200':
+          description: Réseaux
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SocialAccount' }
+    put:
+      tags: [profile]
+      operationId: updateSocials
+      summary: "Remplacer les réseaux"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  maxItems: 10
+                  items: { $ref: '#/components/schemas/SocialAccountInput' }
+      responses:
+        '200':
+          description: Réseaux remplacés
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SocialAccount' }
+        '400': { $ref: '#/components/responses/Problem' }
+  /api/me/stats:
+    get:
+      tags: [profile]
+      operationId: getStats
+      summary: "Lire les stats"
+      responses:
+        '200':
+          description: Stats déclaratives
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProfileStats' }
+    put:
+      tags: [profile]
+      operationId: updateStats
+      summary: "Modifier les stats"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProfileStatsInput' }
+      responses:
+        '200':
+          description: Stats mises à jour
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProfileStats' }
+        '400': { $ref: '#/components/responses/Problem' }
+  /api/me/preview:
+    get:
+      tags: [profile]
+      operationId: getPreview
+      summary: Page construite à partir du brouillon (aperçu éditeur)
+      responses:
+        '200':
+          description: Page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublicPage' }
+
+  # ───────────────────────────── Blocs
+  /api/me/blocks:
+    get:
+      tags: [blocks]
+      operationId: listBlocks
+      summary: "Lister les blocs"
+      responses:
+        '200':
+          description: Blocs triés
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Block' }
+    post:
+      tags: [blocks]
+      operationId: createBlock
+      summary: "Créer un bloc"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BlockInput' }
+      responses:
+        '201':
+          description: Bloc créé
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Block' }
+        '400': { $ref: '#/components/responses/Problem' }
+  /api/me/blocks/order:
+    put:
+      tags: [blocks]
+      operationId: reorderBlocks
+      summary: "Réordonner les blocs"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderRequest' }
+      responses:
+        '200':
+          description: Nouvel ordre
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Block' }
+        '400': { $ref: '#/components/responses/Problem' }
+  /api/me/blocks/{blockId}:
+    parameters:
+      - { $ref: '#/components/parameters/BlockId' }
+    put:
+      tags: [blocks]
+      operationId: updateBlock
+      summary: "Modifier un bloc"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BlockInput' }
+      responses:
+        '200':
+          description: Bloc
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Block' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+    delete:
+      tags: [blocks]
+      operationId: deleteBlock
+      summary: "Supprimer un bloc"
+      responses:
+        '204': { description: Supprimé }
+        '404': { $ref: '#/components/responses/Problem' }
+  /api/me/blocks/{blockId}/items:
+    parameters:
+      - { $ref: '#/components/parameters/BlockId' }
+    get:
+      tags: [blocks]
+      operationId: listBlockItems
+      summary: "Lister les éléments"
+      responses:
+        '200':
+          description: Éléments
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/BlockItem' }
+    post:
+      tags: [blocks]
+      operationId: createBlockItem
+      summary: "Créer un élément"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BlockItemInput' }
+      responses:
+        '201':
+          description: Élément créé
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BlockItem' }
+        '400': { $ref: '#/components/responses/Problem' }
+  /api/me/blocks/{blockId}/items/order:
+    parameters:
+      - { $ref: '#/components/parameters/BlockId' }
+    put:
+      tags: [blocks]
+      operationId: reorderBlockItems
+      summary: "Réordonner les éléments"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderRequest' }
+      responses:
+        '200':
+          description: Nouvel ordre
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/BlockItem' }
+  /api/me/blocks/{blockId}/items/{itemId}:
+    parameters:
+      - { $ref: '#/components/parameters/BlockId' }
+      - { name: itemId, in: path, required: true, schema: { type: string, format: uuid } }
+    put:
+      tags: [blocks]
+      operationId: updateBlockItem
+      summary: "Modifier un élément"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BlockItemInput' }
+      responses:
+        '200':
+          description: Élément
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BlockItem' }
+        '404': { $ref: '#/components/responses/Problem' }
+    delete:
+      tags: [blocks]
+      operationId: deleteBlockItem
+      summary: "Supprimer un élément"
+      responses:
+        '204': { description: Supprimé }
+
+  # ───────────────────────────── Thème
+  /api/me/theme:
+    get:
+      tags: [theme]
+      operationId: getTheme
+      summary: "Lire le thème"
+      responses:
+        '200':
+          description: Brouillon et version publiée
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ThemeState' }
+    put:
+      tags: [theme]
+      operationId: saveThemeDraft
+      summary: "Enregistrer le brouillon de thème"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ThemeConfig' }
+      responses:
+        '200':
+          description: Brouillon enregistré
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ThemeState' }
+        '400': { $ref: '#/components/responses/Problem' }
+  /api/me/theme/publish:
+    post:
+      tags: [theme]
+      operationId: publishTheme
+      summary: Publie le brouillon et rend la page visible
+      responses:
+        '200':
+          description: Publié
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ThemeState' }
+  /api/theme/presets:
+    get:
+      tags: [theme]
+      operationId: listThemePresets
+      summary: "Lister les presets"
+      security: []
+      responses:
+        '200':
+          description: Presets
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ThemePreset' }
+
+  # ───────────────────────────── Uploads
+  /api/me/uploads/sign:
+    post:
+      tags: [uploads]
+      operationId: signUpload
+      summary: "Signer un upload Cloudinary"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind]
+              properties:
+                kind: { $ref: '#/components/schemas/AssetKind' }
+      responses:
+        '200':
+          description: Paramètres d'upload signé Cloudinary
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UploadSignature' }
+        '503': { $ref: '#/components/responses/Problem' }
+  /api/me/uploads/complete:
+    post:
+      tags: [uploads]
+      operationId: completeUpload
+      summary: Enregistre un asset Cloudinary après upload (vérifie la signature de la réponse Cloudinary)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UploadCompleteRequest' }
+      responses:
+        '201':
+          description: Asset
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Image' }
+        '400': { $ref: '#/components/responses/Problem' }
+  /api/me/uploads/local:
+    post:
+      tags: [uploads]
+      operationId: uploadLocal
+      summary: Upload direct (dev / sans Cloudinary). Désactivé si `LOCAL_UPLOADS_ENABLED=false`.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, kind]
+              properties:
+                file: { type: string, format: binary }
+                kind: { $ref: '#/components/schemas/AssetKind' }
+      responses:
+        '201':
+          description: Asset
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Image' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '413': { $ref: '#/components/responses/Problem' }
+
+  # ───────────────────────────── Public
+  /api/public/{handle}:
+    parameters:
+      - { $ref: '#/components/parameters/HandlePath' }
+    get:
+      tags: [public]
+      operationId: getPublicPage
+      summary: "Page publique"
+      security: []
+      responses:
+        '200':
+          description: Page publiée
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublicPage' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /api/public/{handle}/blocks/{slug}:
+    parameters:
+      - { $ref: '#/components/parameters/HandlePath' }
+      - { name: slug, in: path, required: true, schema: { type: string, pattern: '^[a-z0-9-]{1,40}$' } }
+    get:
+      tags: [public]
+      operationId: getPublicBlock
+      summary: "Détail d'un bloc public"
+      security: []
+      responses:
+        '200':
+          description: Détail du bloc
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublicBlockDetail' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /api/public/{handle}/events:
+    parameters:
+      - { $ref: '#/components/parameters/HandlePath' }
+    post:
+      tags: [public]
+      operationId: trackEvent
+      summary: "Enregistrer un événement analytics"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AnalyticsEventInput' }
+          text/plain:
+            schema: { type: string, maxLength: 2048, description: JSON sérialisé (sendBeacon) }
+      responses:
+        '202': { description: Accepté }
+        '429': { $ref: '#/components/responses/Problem' }
+  /api/public/{handle}/contact:
+    parameters:
+      - { $ref: '#/components/parameters/HandlePath' }
+    post:
+      tags: [public]
+      operationId: sendContactMessage
+      summary: "Envoyer un message au créateur"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ContactMessageInput' }
+      responses:
+        '202': { description: Message transmis }
+        '400': { $ref: '#/components/responses/Problem' }
+        '429': { $ref: '#/components/responses/Problem' }
+  /api/public/{handle}/products/{productId}:
+    parameters:
+      - { $ref: '#/components/parameters/HandlePath' }
+      - { $ref: '#/components/parameters/ProductId' }
+    get:
+      tags: [public]
+      operationId: getPublicProduct
+      summary: "Fiche produit publique"
+      security: []
+      responses:
+        '200':
+          description: Fiche produit
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublicProduct' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /api/public/{handle}/checkout:
+    parameters:
+      - { $ref: '#/components/parameters/HandlePath' }
+    post:
+      tags: [shop]
+      operationId: checkout
+      summary: "Créer une commande"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CheckoutRequest' }
+      responses:
+        '201':
+          description: Commande créée, redirection vers le paiement
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CheckoutResponse' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '429': { $ref: '#/components/responses/Problem' }
+  /api/public/orders/{reference}:
+    get:
+      tags: [shop]
+      operationId: getOrderStatus
+      summary: "Statut public d'une commande"
+      security: []
+      parameters:
+        - { name: reference, in: path, required: true, schema: { type: string, pattern: '^LM-[A-Z0-9]{12}$' } }
+      responses:
+        '200':
+          description: Statut (page de confirmation)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderStatusView' }
+        '404': { $ref: '#/components/responses/Problem' }
+
+  # ───────────────────────────── Shop (créateur)
+  /api/me/products:
+    get:
+      tags: [shop]
+      operationId: listProducts
+      summary: "Lister mes produits"
+      responses:
+        '200':
+          description: Produits
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Product' }
+    post:
+      tags: [shop]
+      operationId: createProduct
+      summary: "Créer un produit"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductInput' }
+      responses:
+        '201':
+          description: Créé
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+        '400': { $ref: '#/components/responses/Problem' }
+  /api/me/products/{productId}:
+    parameters:
+      - { $ref: '#/components/parameters/ProductId' }
+    put:
+      tags: [shop]
+      operationId: updateProduct
+      summary: "Modifier un produit"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductInput' }
+      responses:
+        '200':
+          description: Produit
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+        '404': { $ref: '#/components/responses/Problem' }
+    delete:
+      tags: [shop]
+      operationId: deleteProduct
+      summary: Suppression logique (les commandes restent)
+      responses:
+        '204': { description: Supprimé }
+  /api/me/orders:
+    get:
+      tags: [shop]
+      operationId: listOrders
+      summary: "Lister mes commandes"
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/Size' }
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/OrderStatus' } }
+      responses:
+        '200':
+          description: Commandes
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderPage' }
+  /api/me/earnings:
+    get:
+      tags: [shop]
+      operationId: getEarnings
+      summary: "Mes gains"
+      responses:
+        '200':
+          description: Gains
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Earnings' }
+  /api/me/messages:
+    get:
+      tags: [profile]
+      operationId: listContactMessages
+      summary: "Messages reçus"
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/Size' }
+      responses:
+        '200':
+          description: Messages reçus
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContactMessagePage' }
+  /api/me/analytics:
+    get:
+      tags: [analytics]
+      operationId: getAnalytics
+      summary: "Statistiques de trafic"
+      parameters:
+        - { name: days, in: query, schema: { type: integer, enum: [7, 30], default: 7 } }
+      responses:
+        '200':
+          description: Trafic
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnalyticsSummary' }
+
+  # ───────────────────────────── Paiements
+  /api/webhooks/{provider}:
+    post:
+      tags: [payments]
+      operationId: paymentWebhook
+      summary: "Webhook fournisseur de paiement"
+      security: []
+      parameters:
+        - { name: provider, in: path, required: true, schema: { $ref: '#/components/schemas/PaymentProviderId' } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+          application/x-www-form-urlencoded:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: Traité (ou déjà traité — idempotent) }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+  /api/payments/mock/{reference}:
+    get:
+      tags: [payments]
+      operationId: mockPaymentPage
+      summary: Page de paiement simulée (profil dev/test uniquement)
+      security: []
+      parameters:
+        - { name: reference, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Page HTML
+          content:
+            text/html:
+              schema: { type: string }
+        '404': { $ref: '#/components/responses/Problem' }
+  /api/payments/mock/{reference}/complete:
+    post:
+      tags: [payments]
+      operationId: mockPaymentComplete
+      summary: "Simuler l'issue d'un paiement (mock)"
+      security: []
+      parameters:
+        - { name: reference, in: path, required: true, schema: { type: string } }
+        - { name: outcome, in: query, required: true, schema: { type: string, enum: [success, failure, cancel] } }
+      responses:
+        '303': { description: Redirection vers la page de confirmation }
+
+components:
+  securitySchemes:
+    session:
+      type: apiKey
+      in: cookie
+      name: LM_SESSION
+  responses:
+    Problem:
+      description: Erreur RFC 7807
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+  parameters:
+    HandlePath:
+      name: handle
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/Handle' }
+    BlockId:
+      name: blockId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ProductId:
+      name: productId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 0, default: 0 }
+    Size:
+      name: size
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+
+  schemas:
+    Problem:
+      type: object
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        code: { type: string, description: Code machine stable (ex. HANDLE_TAKEN) }
+        errors:
+          type: array
+          items:
+            type: object
+            required: [field, message]
+            properties:
+              field: { type: string }
+              message: { type: string }
+    Handle:
+      type: string
+      pattern: '^[a-z0-9._-]{3,30}$'
+    HexColor:
+      type: string
+      pattern: '^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$'
+    Unit:
+      type: number
+      minimum: 0
+      maximum: 1
+    SafeUrl:
+      type: string
+      maxLength: 2048
+      description: Schémas autorisés — https:, mailto:, tel:, https://wa.me/
+      pattern: '^(https://|mailto:|tel:)'
+    PageMeta:
+      type: object
+      required: [page, size, totalElements, totalPages]
+      properties:
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer, format: int64 }
+        totalPages: { type: integer }
+    OrderRequest:
+      type: object
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          maxItems: 200
+          items: { type: string, format: uuid }
+
+    # Auth
+    RegisterRequest:
+      type: object
+      required: [email, password, handle, displayName, acceptTerms]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        password: { type: string, minLength: 10, maxLength: 128 }
+        handle: { $ref: '#/components/schemas/Handle' }
+        displayName: { type: string, minLength: 1, maxLength: 60 }
+        acceptTerms: { type: boolean, const: true }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        password: { type: string, maxLength: 128 }
+    ForgotPasswordRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+    ResetPasswordRequest:
+      type: object
+      required: [token, password]
+      properties:
+        token: { type: string, maxLength: 128 }
+        password: { type: string, minLength: 10, maxLength: 128 }
+    Plan:
+      type: string
+      enum: [free, pro]
+    Me:
+      type: object
+      required: [id, email, handle, displayName, plan, published, onboardingCompleted]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string }
+        handle: { type: string }
+        displayName: { type: string }
+        plan: { $ref: '#/components/schemas/Plan' }
+        published: { type: boolean }
+        onboardingCompleted: { type: boolean }
+
+    # Images
+    AssetKind:
+      type: string
+      enum: [background, thumbnail, product, item]
+    Image:
+      type: object
+      required: [id, urlTemplate]
+      properties:
+        id: { type: string }
+        urlTemplate:
+          type: string
+          description: URL contenant éventuellement `{w}` (largeur demandée). Ex. Cloudinary `…/f_auto,q_auto,c_fill,w_{w}/id`
+        widths:
+          type: array
+          items: { type: integer }
+          description: Largeurs disponibles (sinon libres)
+        width: { type: integer }
+        height: { type: integer }
+        placeholder: { type: string, description: Couleur dominante hex ou data-URI floue (≤ 1 Ko) }
+    UploadSignature:
+      type: object
+      required: [uploadUrl, apiKey, timestamp, signature, folder, allowedFormats, maxBytes]
+      properties:
+        uploadUrl: { type: string }
+        apiKey: { type: string }
+        timestamp: { type: integer, format: int64 }
+        signature: { type: string }
+        folder: { type: string }
+        allowedFormats: { type: string }
+        maxBytes: { type: integer }
+    UploadCompleteRequest:
+      type: object
+      required: [kind, publicId, version, signature, width, height, format, bytes]
+      properties:
+        kind: { $ref: '#/components/schemas/AssetKind' }
+        publicId: { type: string, maxLength: 255 }
+        version: { type: integer, format: int64 }
+        signature: { type: string, maxLength: 128 }
+        width: { type: integer }
+        height: { type: integer }
+        format: { type: string, maxLength: 10 }
+        bytes: { type: integer }
+
+    # Profil
+    Category:
+      type: string
+      minLength: 1
+      maxLength: 24
+    Profile:
+      type: object
+      required: [handle, displayName, taglineLines, categories, bio, published, plan]
+      properties:
+        handle: { type: string }
+        displayName: { type: string }
+        taglineLines: { type: array, maxItems: 3, items: { type: string, maxLength: 40 } }
+        categories: { type: array, maxItems: 3, items: { $ref: '#/components/schemas/Category' } }
+        bio: { type: string, maxLength: 160 }
+        backgroundImageId: { type: [string, 'null'] }
+        backgroundImage: { oneOf: [ { $ref: '#/components/schemas/Image' }, { type: 'null' } ] }
+        published: { type: boolean }
+        plan: { $ref: '#/components/schemas/Plan' }
+        onboardingCompleted: { type: boolean }
+    ProfileUpdate:
+      type: object
+      required: [displayName, taglineLines, categories, bio]
+      properties:
+        displayName: { type: string, minLength: 1, maxLength: 60 }
+        taglineLines: { type: array, maxItems: 3, items: { type: string, maxLength: 40 } }
+        categories: { type: array, maxItems: 3, items: { $ref: '#/components/schemas/Category' } }
+        bio: { type: string, maxLength: 160 }
+        backgroundImageId: { type: [string, 'null'] }
+        published: { type: boolean }
+        onboardingCompleted: { type: boolean }
+    SocialPlatform:
+      type: string
+      enum: [tiktok, instagram, youtube, snapchat, x, facebook, linkedin, twitch, spotify, whatsapp]
+    SocialAccountInput:
+      type: object
+      required: [platform, url, followersCount]
+      properties:
+        platform: { $ref: '#/components/schemas/SocialPlatform' }
+        url: { $ref: '#/components/schemas/SafeUrl' }
+        followersCount: { type: integer, format: int64, minimum: 0, maximum: 10000000000 }
+    SocialAccount:
+      allOf:
+        - $ref: '#/components/schemas/SocialAccountInput'
+        - type: object
+          required: [id, position, updatedAt]
+          properties:
+            id: { type: string, format: uuid }
+            position: { type: integer }
+            updatedAt: { type: string, format: date-time }
+    ProfileStatsInput:
+      type: object
+      required: [followers, likes, views30d]
+      properties:
+        followers: { type: integer, format: int64, minimum: 0, maximum: 100000000000 }
+        likes: { type: integer, format: int64, minimum: 0, maximum: 100000000000 }
+        views30d: { type: integer, format: int64, minimum: 0, maximum: 100000000000 }
+    ProfileStats:
+      allOf:
+        - $ref: '#/components/schemas/ProfileStatsInput'
+        - type: object
+          properties:
+            updatedAt: { type: [string, 'null'], format: date-time }
+
+    # Blocs
+    BlockType:
+      type: string
+      enum: [travel, shop, music, content, contact, link]
+    BlockIcon:
+      type: string
+      enum: [plane, shopping-bag, music, clapperboard, mail, link, camera, heart, star, map-pin, mic, gamepad, book, briefcase]
+    BlockInput:
+      type: object
+      required: [type, title]
+      properties:
+        type: { $ref: '#/components/schemas/BlockType' }
+        title: { type: string, minLength: 1, maxLength: 40 }
+        subtitle: { type: string, maxLength: 80 }
+        icon: { $ref: '#/components/schemas/BlockIcon' }
+        thumbnailImageId: { type: [string, 'null'] }
+        url: { oneOf: [ { $ref: '#/components/schemas/SafeUrl' }, { type: 'null' } ], description: Obligatoire pour `link` }
+        visible: { type: boolean, default: true }
+        config: { $ref: '#/components/schemas/BlockConfig' }
+    BlockConfig:
+      type: object
+      description: Options propres au type (contact → canaux)
+      properties:
+        whatsapp: { type: string, pattern: '^\+?[0-9]{8,15}$' }
+        email: { type: string, format: email }
+        phone: { type: string, pattern: '^\+?[0-9]{8,15}$' }
+    Block:
+      type: object
+      required: [id, type, slug, title, position, visible]
+      properties:
+        id: { type: string, format: uuid }
+        type: { $ref: '#/components/schemas/BlockType' }
+        slug: { type: string }
+        title: { type: string }
+        subtitle: { type: string }
+        icon: { $ref: '#/components/schemas/BlockIcon' }
+        thumbnailImageId: { type: [string, 'null'] }
+        thumbnail: { oneOf: [ { $ref: '#/components/schemas/Image' }, { type: 'null' } ] }
+        url: { type: [string, 'null'] }
+        position: { type: integer }
+        visible: { type: boolean }
+        config: { $ref: '#/components/schemas/BlockConfig' }
+        itemCount: { type: integer }
+    BlockItemInput:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 80 }
+        description: { type: string, maxLength: 500 }
+        url: { oneOf: [ { $ref: '#/components/schemas/SafeUrl' }, { type: 'null' } ] }
+        imageId: { type: [string, 'null'] }
+    BlockItem:
+      type: object
+      required: [id, title, position]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: string }
+        url: { type: [string, 'null'] }
+        imageId: { type: [string, 'null'] }
+        image: { oneOf: [ { $ref: '#/components/schemas/Image' }, { type: 'null' } ] }
+        embed: { oneOf: [ { $ref: '#/components/schemas/Embed' }, { type: 'null' } ] }
+        position: { type: integer }
+    Embed:
+      type: object
+      required: [provider, src]
+      properties:
+        provider: { type: string, enum: [youtube, spotify] }
+        src: { type: string, description: URL d'intégration (youtube-nocookie / open.spotify.com/embed) }
+
+    # Thème
+    ThemeConfig:
+      type: object
+      additionalProperties: false
+      required: [version, preset, colors, background, typography, cards, social, layout, motion]
+      properties:
+        version: { type: integer, const: 1 }
+        preset: { $ref: '#/components/schemas/ThemePresetId' }
+        colors:
+          type: object
+          additionalProperties: false
+          required: [accent, text, textMuted, cardBg, cardBgOpacity, cardBorder, cardBorderOpacity, overlay, overlayStrength, statGlow]
+          properties:
+            accent: { $ref: '#/components/schemas/HexColor' }
+            text: { $ref: '#/components/schemas/HexColor' }
+            textMuted: { $ref: '#/components/schemas/HexColor' }
+            cardBg: { $ref: '#/components/schemas/HexColor' }
+            cardBgOpacity: { $ref: '#/components/schemas/Unit' }
+            cardBorder: { $ref: '#/components/schemas/HexColor' }
+            cardBorderOpacity: { $ref: '#/components/schemas/Unit' }
+            overlay: { $ref: '#/components/schemas/HexColor' }
+            overlayStrength: { $ref: '#/components/schemas/Unit' }
+            statGlow: { $ref: '#/components/schemas/HexColor' }
+        background:
+          type: object
+          additionalProperties: false
+          required: [type, focal, blur]
+          properties:
+            type: { type: string, enum: [image, gradient, solid] }
+            imageId: { type: [string, 'null'], maxLength: 64 }
+            color: { $ref: '#/components/schemas/HexColor' }
+            gradientFrom: { $ref: '#/components/schemas/HexColor' }
+            gradientTo: { $ref: '#/components/schemas/HexColor' }
+            gradientAngle: { type: integer, minimum: 0, maximum: 360 }
+            focal:
+              type: object
+              additionalProperties: false
+              required: [x, y]
+              properties:
+                x: { $ref: '#/components/schemas/Unit' }
+                y: { $ref: '#/components/schemas/Unit' }
+            blur: { type: integer, minimum: 0, maximum: 30 }
+        typography:
+          type: object
+          additionalProperties: false
+          required: [display, hand, body, nameScale]
+          properties:
+            display: { type: string, enum: [kaushan-script, yellowtail, marck-script, caveat-brush] }
+            hand: { type: string, enum: [caveat, reenie-beanie] }
+            body: { type: string, enum: [inter, system] }
+            nameScale: { type: number, minimum: 0.7, maximum: 1.3 }
+        cards:
+          type: object
+          additionalProperties: false
+          required: [style, radius, showThumbnail, thumbnailSide, density, blur]
+          properties:
+            style: { type: string, enum: [glass, solid, outline] }
+            radius: { type: integer, minimum: 0, maximum: 36 }
+            showThumbnail: { type: boolean }
+            thumbnailSide: { type: string, enum: [left, right] }
+            density: { type: string, enum: [compact, comfortable] }
+            blur: { type: integer, minimum: 0, maximum: 40 }
+        social:
+          type: object
+          additionalProperties: false
+          required: [position, showCounts, shape]
+          properties:
+            position: { type: string, enum: [right, left, below-stats] }
+            showCounts: { type: boolean }
+            shape: { type: string, enum: [circle, rounded, square] }
+        layout:
+          type: object
+          additionalProperties: false
+          required: [showTagline, showCrown, showStats, showCategories, footerText]
+          properties:
+            showTagline: { type: boolean }
+            showCrown: { type: boolean }
+            showStats: { type: boolean }
+            showCategories: { type: boolean }
+            footerText: { type: string, maxLength: 40 }
+        motion:
+          type: object
+          additionalProperties: false
+          required: [enabled]
+          properties:
+            enabled: { type: boolean }
+    ThemePresetId:
+      type: string
+      enum: [sunset, midnight-blue, emerald-night, rose-gold, clean-light, custom]
+    ThemePreset:
+      type: object
+      required: [id, name, config]
+      properties:
+        id: { $ref: '#/components/schemas/ThemePresetId' }
+        name: { type: string }
+        config: { $ref: '#/components/schemas/ThemeConfig' }
+    ThemeState:
+      type: object
+      required: [draft, version, hasUnpublishedChanges]
+      properties:
+        draft: { $ref: '#/components/schemas/ThemeConfig' }
+        published: { oneOf: [ { $ref: '#/components/schemas/ThemeConfig' }, { type: 'null' } ] }
+        version: { type: integer }
+        hasUnpublishedChanges: { type: boolean }
+        updatedAt: { type: string, format: date-time }
+        publishedAt: { type: [string, 'null'], format: date-time }
+
+    # Public
+    PublicProfile:
+      type: object
+      required: [handle, displayName, taglineLines, categories, bio]
+      properties:
+        handle: { type: string }
+        displayName: { type: string }
+        taglineLines: { type: array, items: { type: string } }
+        categories: { type: array, items: { type: string } }
+        bio: { type: string }
+    PublicPage:
+      type: object
+      required: [profile, socials, blocks, theme, images, showBranding, preview]
+      properties:
+        profile: { $ref: '#/components/schemas/PublicProfile' }
+        stats: { oneOf: [ { $ref: '#/components/schemas/ProfileStats' }, { type: 'null' } ] }
+        socials:
+          type: array
+          items:
+            type: object
+            required: [platform, url, followersCount]
+            properties:
+              platform: { $ref: '#/components/schemas/SocialPlatform' }
+              url: { type: string }
+              followersCount: { type: integer, format: int64 }
+        blocks:
+          type: array
+          items: { $ref: '#/components/schemas/Block' }
+        theme: { $ref: '#/components/schemas/ThemeConfig' }
+        images:
+          type: object
+          description: Toutes les images référencées (fond, vignettes), indexées par id
+          additionalProperties: { $ref: '#/components/schemas/Image' }
+        showBranding: { type: boolean, description: false pour le plan Pro }
+        preview: { type: boolean }
+        seo:
+          type: object
+          properties:
+            title: { type: string }
+            description: { type: string }
+            ogImage: { type: string }
+    PublicBlockDetail:
+      type: object
+      required: [block, items, products]
+      properties:
+        block: { $ref: '#/components/schemas/Block' }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/BlockItem' }
+        products:
+          type: array
+          items: { $ref: '#/components/schemas/PublicProduct' }
+    AnalyticsEventInput:
+      type: object
+      required: [type]
+      properties:
+        type: { type: string, enum: [page_view, link_click] }
+        blockId: { type: [string, 'null'], format: uuid }
+        target: { type: string, maxLength: 64, description: 'Ex. social:tiktok, block, mylinks' }
+        referrer: { type: string, maxLength: 512 }
+    ContactMessageInput:
+      type: object
+      required: [name, message]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        email: { type: string, format: email, maxLength: 254 }
+        phone: { type: string, pattern: '^\+?[0-9 ]{8,20}$' }
+        message: { type: string, minLength: 5, maxLength: 2000 }
+        website: { type: string, maxLength: 0, description: Pot de miel anti-spam (doit rester vide) }
+    ContactMessage:
+      type: object
+      required: [id, name, message, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: [string, 'null'] }
+        phone: { type: [string, 'null'] }
+        message: { type: string }
+        createdAt: { type: string, format: date-time }
+    ContactMessagePage:
+      type: object
+      required: [items, page]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/ContactMessage' } }
+        page: { $ref: '#/components/schemas/PageMeta' }
+
+    # Shop
+    ProductInput:
+      type: object
+      required: [title, priceXof, imageIds, active]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 80 }
+        priceXof: { type: integer, format: int64, minimum: 100, maximum: 10000000 }
+        description: { type: string, maxLength: 2000 }
+        stock: { type: [integer, 'null'], minimum: 0, maximum: 100000 }
+        active: { type: boolean }
+        imageIds: { type: array, minItems: 1, maxItems: 5, items: { type: string } }
+    Product:
+      type: object
+      required: [id, title, priceXof, active, images, imageIds, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        priceXof: { type: integer, format: int64 }
+        description: { type: string }
+        stock: { type: [integer, 'null'] }
+        active: { type: boolean }
+        imageIds: { type: array, items: { type: string } }
+        images: { type: array, items: { $ref: '#/components/schemas/Image' } }
+        createdAt: { type: string, format: date-time }
+    PublicProduct:
+      type: object
+      required: [id, title, priceXof, images, available]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        priceXof: { type: integer, format: int64 }
+        description: { type: string }
+        images: { type: array, items: { $ref: '#/components/schemas/Image' } }
+        available: { type: boolean }
+    PaymentProviderId:
+      type: string
+      enum: [mock, paydunya, cinetpay]
+    CheckoutRequest:
+      type: object
+      required: [productId, quantity, buyerName, buyerPhone]
+      properties:
+        productId: { type: string, format: uuid }
+        quantity: { type: integer, minimum: 1, maximum: 10 }
+        buyerName: { type: string, minLength: 2, maxLength: 80 }
+        buyerPhone: { type: string, pattern: '^\+?[0-9 ]{8,20}$' }
+        buyerEmail: { type: string, format: email, maxLength: 254 }
+        provider: { $ref: '#/components/schemas/PaymentProviderId' }
+        idempotencyKey: { type: string, maxLength: 64, description: Clé générée par le client pour éviter les doubles commandes }
+    CheckoutResponse:
+      type: object
+      required: [reference, paymentUrl, status, amountXof]
+      properties:
+        reference: { type: string }
+        paymentUrl: { type: string }
+        status: { $ref: '#/components/schemas/OrderStatus' }
+        amountXof: { type: integer, format: int64 }
+    OrderStatus:
+      type: string
+      enum: [PENDING, PAID, FAILED, CANCELED]
+    OrderStatusView:
+      type: object
+      required: [reference, status, amountXof, productTitle, creatorHandle, creatorName]
+      properties:
+        reference: { type: string }
+        status: { $ref: '#/components/schemas/OrderStatus' }
+        amountXof: { type: integer, format: int64 }
+        productTitle: { type: string }
+        quantity: { type: integer }
+        creatorHandle: { type: string }
+        creatorName: { type: string }
+        paidAt: { type: [string, 'null'], format: date-time }
+    Order:
+      type: object
+      required: [id, reference, status, amountXof, commissionXof, netXof, provider, productTitle, quantity, buyerName, buyerPhone, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        reference: { type: string }
+        status: { $ref: '#/components/schemas/OrderStatus' }
+        amountXof: { type: integer, format: int64 }
+        commissionXof: { type: integer, format: int64 }
+        netXof: { type: integer, format: int64 }
+        provider: { $ref: '#/components/schemas/PaymentProviderId' }
+        productTitle: { type: string }
+        quantity: { type: integer }
+        buyerName: { type: string }
+        buyerPhone: { type: string }
+        buyerEmail: { type: [string, 'null'] }
+        payoutStatus: { type: string, enum: [NONE, PENDING_PAYOUT, PAID_OUT] }
+        needsAttention: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        paidAt: { type: [string, 'null'], format: date-time }
+    OrderPage:
+      type: object
+      required: [items, page]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Order' } }
+        page: { $ref: '#/components/schemas/PageMeta' }
+    Earnings:
+      type: object
+      required: [grossXof, commissionXof, netXof, pendingPayoutXof, paidOutXof, paidOrders, commissionPercent, last30Days]
+      properties:
+        grossXof: { type: integer, format: int64 }
+        commissionXof: { type: integer, format: int64 }
+        netXof: { type: integer, format: int64 }
+        pendingPayoutXof: { type: integer, format: int64 }
+        paidOutXof: { type: integer, format: int64 }
+        paidOrders: { type: integer }
+        commissionPercent: { type: number }
+        last30Days:
+          type: array
+          items:
+            type: object
+            required: [date, netXof, orders]
+            properties:
+              date: { type: string, format: date }
+              netXof: { type: integer, format: int64 }
+              orders: { type: integer }
+
+    # Analytics
+    AnalyticsSummary:
+      type: object
+      required: [days, pageViews, clicks, byDay, byBlock]
+      properties:
+        days: { type: integer }
+        pageViews: { type: integer, format: int64 }
+        uniqueVisitors: { type: integer, format: int64 }
+        clicks: { type: integer, format: int64 }
+        byDay:
+          type: array
+          items:
+            type: object
+            required: [date, pageViews, clicks]
+            properties:
+              date: { type: string, format: date }
+              pageViews: { type: integer, format: int64 }
+              clicks: { type: integer, format: int64 }
+        byBlock:
+          type: array
+          items:
+            type: object
+            required: [target, clicks]
+            properties:
+              blockId: { type: [string, 'null'] }
+              target: { type: string }
+              title: { type: string }
+              clicks: { type: integer, format: int64 }
+
+security:
+  - session: []

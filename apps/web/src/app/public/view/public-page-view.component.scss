@@ -1,0 +1,330 @@
+@use 'bp' as *;
+
+// Page créateur — composition maquette (docs/design/tokens.md). Aucune valeur de couleur littérale : tokens uniquement.
+:host {
+  display: block;
+}
+
+.lm-page {
+  position: relative;
+  min-height: 100svh;
+  color: var(--lm-text);
+  font-family: var(--lm-font-body);
+  background: var(--lm-bg);
+  overflow-x: clip;
+}
+
+.lm-page--embedded {
+  min-height: 100%;
+}
+
+.lm-scope {
+  position: relative;
+  min-height: inherit;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-banner {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  margin: 0;
+  padding: 6px 12px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  background: var(--lm-accent);
+  color: var(--lm-overlay);
+}
+
+// ───────────── Barre du haut
+.top {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: calc(14px + env(safe-area-inset-top)) var(--lm-gutter) 0;
+}
+
+.top__logo {
+  margin-top: 4px;
+}
+
+.top__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+// ───────────── Contenu
+.main {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  width: 100%;
+  max-width: calc(var(--lm-content-max) + 2 * var(--lm-gutter));
+  margin: 0 auto;
+  padding: 0 var(--lm-gutter);
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'tagline tagline'
+    'name rail'
+    'cats rail'
+    'identity rail';
+  column-gap: 8px;
+  padding-top: clamp(28px, 7svh, 64px);
+}
+
+.hero--rail-left {
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    'tagline tagline'
+    'rail name'
+    'rail cats'
+    'rail identity';
+}
+
+.tagline {
+  grid-area: tagline;
+  position: relative;
+  width: max-content;
+  max-width: 70%;
+  margin: 0 0 clamp(16px, 4svh, 40px) 4px;
+  transform: rotate(-8deg);
+  transform-origin: left top;
+}
+
+.tagline__crown {
+  width: 24px;
+  margin: 0 0 4px 14px;
+  opacity: 0.9;
+}
+
+.tagline__text {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--lm-font-hand);
+  font-size: var(--lm-fs-tagline);
+  line-height: 1.08;
+  letter-spacing: 0.01em;
+  text-shadow: 0 1px 12px var(--lm-shadow-text);
+}
+
+.tagline__swash {
+  width: 70%;
+  height: 7px;
+  margin: 6px 0 0 12%;
+  opacity: 0.9;
+}
+
+.identity {
+  grid-area: identity;
+  min-width: 0;
+}
+
+.identity__name {
+  grid-area: name;
+  margin-left: -2px;
+  min-width: 0;
+}
+
+.categories {
+  grid-area: cats;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 0.9em;
+  margin: 14px 0 0;
+  font-size: var(--lm-fs-categories);
+  font-weight: 400;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--lm-text-muted);
+  text-shadow: 0 1px 8px var(--lm-shadow-text);
+}
+
+.categories__dot {
+  letter-spacing: 0;
+  font-size: 0.8em;
+}
+
+.bio {
+  margin: 12px 0 0;
+  font-size: var(--lm-fs-bio);
+  line-height: 1.5;
+  white-space: pre-line;
+  text-shadow: 0 1px 10px var(--lm-shadow-text);
+  max-width: 34ch;
+}
+
+.stats {
+  margin: 18px 0 0 -6px;
+}
+
+.rail {
+  grid-area: rail;
+  align-self: center;
+  margin-top: 24px;
+}
+
+.rail--row {
+  margin-top: 16px;
+}
+
+// Liste des cartes
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lm-card-gap);
+  margin-top: 28px;
+  scroll-margin-top: 24px;
+}
+
+// ───────────── Pied
+.foot {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas:
+    'connect connect connect'
+    'scroll . brand';
+  align-items: end;
+  gap: 0 8px;
+  padding: 36px var(--lm-gutter) calc(18px + env(safe-area-inset-bottom));
+  width: 100%;
+  max-width: calc(var(--lm-content-max) + 2 * var(--lm-gutter));
+  margin: 0 auto;
+}
+
+.foot__scroll {
+  grid-area: scroll;
+  justify-self: start;
+}
+
+.foot__connect {
+  grid-area: connect;
+  justify-self: center;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.foot__connect-text {
+  font-family: var(--lm-font-hand);
+  font-size: var(--lm-fs-footer);
+  line-height: 1;
+  transform: rotate(-13deg);
+  white-space: nowrap;
+}
+
+.foot__connect-swash {
+  width: 118px;
+  height: 7px;
+  margin: 2px 0 0 18px;
+  transform: rotate(-13deg);
+}
+
+.foot__heart {
+  margin-top: 8px;
+  color: var(--lm-text);
+}
+
+.foot__brand {
+  grid-area: brand;
+  justify-self: end;
+}
+
+// ───────────── Paliers responsive (media queries en public, container queries dans l'aperçu — cf. _bp.scss)
+@include bp(640px) {
+  .hero {
+    column-gap: 24px;
+  }
+  .cards {
+    margin-top: 36px;
+  }
+  .tagline {
+    margin-bottom: 36px;
+  }
+}
+
+@include bp(1024px) {
+  .main {
+    max-width: none;
+    margin: 0;
+    padding: 0 var(--lm-gutter);
+  }
+
+  .hero,
+  .cards {
+    max-width: var(--lm-content-max);
+  }
+
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'tagline'
+      'name'
+      'cats'
+      'identity';
+    padding-top: clamp(32px, 8vh, 96px);
+  }
+
+  .foot {
+    max-width: none;
+    margin: 0;
+    grid-template-columns: auto minmax(0, calc(var(--lm-content-max) - 88px)) 1fr auto;
+    grid-template-areas: 'scroll connect . brand';
+    column-gap: 16px;
+    padding-inline: var(--lm-gutter);
+  }
+
+  .foot__connect {
+    margin-bottom: 0;
+  }
+}
+
+// Rail vertical fixé à droite de l'écran et chevron fixé en bas à gauche (page publique uniquement)
+@media (min-width: 1024px) {
+  .lm-page:not(.lm-page--embedded) {
+    .rail:not(.rail--row) {
+      position: fixed;
+      z-index: 2;
+      right: var(--lm-gutter);
+      top: 50%;
+      transform: translateY(-50%);
+      margin: 0;
+    }
+
+    .hero--rail-left .rail:not(.rail--row) {
+      right: auto;
+      left: calc(var(--lm-gutter) + var(--lm-content-max) + 48px);
+    }
+  }
+}
+
+// Aperçu desktop : rail à droite dans la grille (pas de position fixe dans un cadre défilant)
+@container lm (min-width: 1024px) {
+  .lm-page--embedded {
+    .hero {
+      grid-template-columns: minmax(0, var(--lm-content-max)) 1fr auto;
+      grid-template-areas:
+        'tagline tagline tagline'
+        'name . rail'
+        'cats . rail'
+        'identity . rail';
+      max-width: none;
+    }
+  }
+}
+

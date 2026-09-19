@@ -1,0 +1,134 @@
+@use 'bp' as *;
+
+// Tokens STRUCTURELS (non thémables) + valeurs par défaut des tokens thémables (thème Sunset).
+// C'est l'un des deux seuls endroits où des valeurs littérales de couleur sont autorisées (avec core/theme/).
+// Mesures : docs/design/tokens.md §2.
+:root {
+  // — thémables (écrasés en ligne par themeToCssVars sur .lm-page)
+  --lm-text: #ffffff;
+  --lm-text-muted: rgba(255, 255, 255, 0.62);
+  --lm-accent: #ffb067;
+  --lm-overlay: #03050a;
+  --lm-overlay-strength: 0.9;
+  --lm-card-bg: rgba(10, 12, 18, 0.62);
+  --lm-card-bg-fallback: rgba(10, 12, 18, 0.87);
+  --lm-card-border: rgba(255, 255, 255, 0.14);
+  --lm-card-blur: 20px;
+  --lm-card-radius: 28px;
+  --lm-card-height: 92px;
+  --lm-stat-glow: rgba(60, 110, 255, 0.18);
+  --lm-surface: rgba(10, 12, 18, 0.7);
+  --lm-surface-strong: rgba(10, 12, 18, 0.94);
+  --lm-hairline: rgba(255, 255, 255, 0.22);
+  --lm-control-bg: rgba(10, 12, 18, 0.7);
+  --lm-control-border: rgba(255, 255, 255, 0.35);
+  --lm-shadow-text: rgba(3, 5, 10, 0.55);
+  --lm-backdrop: rgba(0, 0, 0, 0.55);
+  --lm-backdrop-light: rgba(0, 0, 0, 0.25);
+  --lm-font-display: 'Kaushan Script', 'Brush Script MT', cursive;
+  --lm-font-hand: 'Caveat', 'Segoe Print', cursive;
+  --lm-font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --lm-font-brand: 'Kaushan Script', 'Brush Script MT', cursive; // logo plateforme : indépendant du thème du créateur
+  --lm-name-scale: 1;
+  --lm-bg: #03050a;
+  --lm-bg-focal: 60% 30%;
+  --lm-bg-blur: 0px;
+  --lm-social-radius: 50%;
+
+  // — structurels
+  --lm-gutter: 16px;
+  --lm-content-max: 560px;
+  --lm-touch: 44px;
+  --lm-topbar-h: 44px;
+  --lm-card-gap: 12px;
+  --lm-thumb-ratio: 1.22;
+  --lm-arrow-size: 40px;
+  --lm-icon-size: 22px;
+  --lm-social-size: 44px;
+  --lm-social-gap: 8px;
+  --lm-focus-ring: 0 0 0 2px var(--lm-overlay), 0 0 0 4px var(--lm-accent);
+  --lm-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --lm-dur: 420ms;
+  --lm-stagger: 60ms;
+
+  // — typographie
+  --lm-u: 1vw; // unité de largeur : vw en public, cqi dans l'aperçu éditeur
+  --lm-fs-tagline: 21px;
+  --lm-fs-categories: 10.5px;
+  --lm-fs-bio: 15px;
+  --lm-fs-stat: 26px;
+  --lm-fs-stat-label: 12px;
+  --lm-fs-card-title: 16px;
+  --lm-fs-card-sub: 12.5px;
+  --lm-fs-social-count: 12px;
+  --lm-fs-footer: 27px;
+
+  // — éditeur (UI du back-office, indépendante du thème du créateur)
+  --ed-bg: #0e1016;
+  --ed-panel: #161922;
+  --ed-panel-2: #1d212c;
+  --ed-border: #2a2f3c;
+  --ed-text: #eef0f5;
+  --ed-muted: #a3aabb;
+  --ed-accent: #ffb067;
+  --ed-accent-ink: #1a1206;
+  --ed-danger: #ff6b6b;
+  --ed-success: #4ade80;
+  --ed-warning: #fbbf24;
+  --ed-radius: 12px;
+}
+
+
+// Taille du nom : déclarée sur .lm-scope pour que `--lm-u` soit résolue à ce niveau.
+.lm-scope {
+  --lm-fs-name: clamp(40px, calc(11.8 * var(--lm-u)), 88px);
+}
+// Aperçu éditeur : la taille suit la largeur du cadre (cqi) et non celle de la fenêtre.
+.lm-page--embedded .lm-scope {
+  --lm-u: 1cqi;
+}
+
+@include bp-scope(640px) {
+  & {
+    --lm-gutter: 24px;
+    --lm-content-max: 620px;
+    --lm-fs-name: clamp(56px, calc(9.5 * var(--lm-u)), 78px);
+    --lm-card-gap: 14px;
+    --lm-fs-bio: 16px;
+    --lm-fs-stat: 28px;
+    --lm-social-size: 48px;
+    --lm-fs-card-title: 16.5px;
+    --lm-fs-card-sub: 13px;
+  }
+}
+
+@include bp-scope(1024px) {
+  & {
+    --lm-gutter: 48px;
+    --lm-content-max: 560px;
+    --lm-topbar-h: 48px;
+    --lm-fs-name: 88px;
+    --lm-fs-tagline: 24px;
+    --lm-fs-categories: 13px;
+    --lm-fs-bio: 17px;
+    --lm-fs-stat: 30px;
+    --lm-fs-stat-label: 14px;
+    --lm-fs-card-title: 17px;
+    --lm-fs-card-sub: 13px;
+    --lm-social-size: 56px;
+    --lm-fs-social-count: 15px;
+    --lm-arrow-size: 44px;
+    --lm-icon-size: 24px;
+    --lm-fs-footer: 30px;
+    --lm-fs-logo: 34px;
+    --lm-bg-side: linear-gradient(90deg, var(--lm-shadow-text), transparent 55%);
+    --lm-fs-powered-label: 12px;
+    --lm-fs-powered-brand: 18px;
+  }
+}
+
+@include bp-scope(1440px) {
+  & {
+    --lm-gutter: 64px;
+  }
+}

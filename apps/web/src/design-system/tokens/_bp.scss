@@ -1,0 +1,32 @@
+// Paliers responsive de la page créateur.
+// - Page publique : media queries (le fond et le rail doivent rester `position: fixed`, ce qu'une container query
+//   interdirait : un conteneur devient le bloc conteneur des éléments fixes).
+// - Aperçu éditeur (`.lm-page--embedded`) : container queries sur le cadre d'aperçu (`container: lm / size`), pour
+//   que les boutons mobile / tablette / desktop de l'éditeur rendent exactement la même mise en page.
+// Usage dans un composant : `@include bp(1024px) { .hero { … } }`
+@mixin bp($min) {
+  @media (min-width: $min) {
+    .lm-page:not(.lm-page--embedded) {
+      @content;
+    }
+  }
+  @container lm (min-width: $min) {
+    .lm-page--embedded {
+      @content;
+    }
+  }
+}
+
+// Variante pour les styles hors du composant page (tokens globaux).
+@mixin bp-scope($min) {
+  @media (min-width: $min) {
+    .lm-page:not(.lm-page--embedded) .lm-scope {
+      @content;
+    }
+  }
+  @container lm (min-width: $min) {
+    .lm-page--embedded .lm-scope {
+      @content;
+    }
+  }
+}

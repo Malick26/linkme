@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.angular/
+target/
+test-results/
+playwright-report/
+lhci-report/
+*.tmp.mjs
+.env
+infra/.env
+*.log
+.DS_Store
+.idea/
+.vscode/

@@ -1,0 +1,152 @@
+:host {
+  display: block;
+  animation: lm-card-in var(--lm-dur) var(--lm-ease) both;
+  animation-delay: calc(var(--i, 0) * var(--lm-stagger) + 120ms);
+}
+:host-context(.lm-no-motion) {
+  animation: none;
+}
+
+// fondu « partiel » : la carte est peinte dès la première frame (Speed Index / LCP), puis s'affirme
+@keyframes lm-card-in {
+  from {
+    opacity: 0.35;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lc {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--lm-card-height);
+  padding-inline-end: 12px;
+  overflow: hidden;
+  border-radius: var(--lm-card-radius);
+  background: var(--lm-card-bg);
+  border: 1px solid var(--lm-card-border);
+  -webkit-backdrop-filter: blur(var(--lm-card-blur)) saturate(1.15);
+  backdrop-filter: blur(var(--lm-card-blur)) saturate(1.15);
+  color: var(--lm-text);
+  text-decoration: none;
+  transition:
+    transform 0.2s var(--lm-ease),
+    border-color 0.2s;
+  -webkit-tap-highlight-color: transparent;
+
+  &:hover {
+    border-color: var(--lm-control-border);
+  }
+  &:active {
+    transform: scale(0.98);
+  }
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--lm-focus-ring);
+  }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .lc {
+    background: var(--lm-card-bg-fallback);
+  }
+}
+
+:host-context(.lm-thumb-none) .lc,
+.lc:not(:has(.lc__thumb)) {
+  padding-inline-start: 20px;
+}
+
+.lc__thumb {
+  align-self: stretch;
+  flex: none;
+  width: clamp(76px, 22%, calc(var(--lm-card-height) * var(--lm-thumb-ratio)));
+  margin-block: -1px;
+  margin-inline-start: -1px;
+  overflow: hidden;
+  border-start-start-radius: var(--lm-card-radius);
+  border-end-start-radius: var(--lm-card-radius);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background-color: var(--lm-surface);
+  }
+}
+
+:host-context(.lm-thumb-right) {
+  .lc__thumb {
+    order: 4;
+    margin-inline: 0 -15px;
+    border-radius: 0 var(--lm-card-radius) var(--lm-card-radius) 0;
+  }
+  .lc {
+    padding-inline-start: 18px;
+  }
+  .lc__arrow {
+    order: 3;
+  }
+}
+
+.lc__icon {
+  flex: none;
+  color: var(--lm-text);
+  margin-inline-start: 4px;
+}
+
+.lc__text {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  flex: 1;
+}
+
+.lc__title {
+  font-size: var(--lm-fs-card-title);
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.005em;
+}
+
+.lc__sub {
+  font-size: var(--lm-fs-card-sub);
+  color: var(--lm-text-muted);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.lc__arrow {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--lm-arrow-size);
+  height: var(--lm-arrow-size);
+  border-radius: 50%;
+  border: 1px solid var(--lm-control-border);
+  background: var(--lm-control-bg);
+  transition: transform 0.2s var(--lm-ease);
+
+  lm-icon {
+    transition: transform 0.2s var(--lm-ease);
+  }
+}
+
+.lc:hover .lc__arrow lm-icon,
+.lc:focus-visible .lc__arrow lm-icon {
+  transform: translateX(3px);
+}
+
+:host-context(.lm-no-motion) .lc:hover .lc__arrow lm-icon {
+  transform: none;
+}

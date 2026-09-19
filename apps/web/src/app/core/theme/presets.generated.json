@@ -1,0 +1,312 @@
+[
+  {
+    "id": "sunset",
+    "name": "Sunset",
+    "config": {
+      "version": 1,
+      "preset": "sunset",
+      "colors": {
+        "accent": "#FFB067",
+        "text": "#FFFFFF",
+        "textMuted": "#FFFFFF9E",
+        "cardBg": "#0A0C12",
+        "cardBgOpacity": 0.62,
+        "cardBorder": "#FFFFFF",
+        "cardBorderOpacity": 0.14,
+        "overlay": "#03050A",
+        "overlayStrength": 0.9,
+        "statGlow": "#3C6EFF"
+      },
+      "background": {
+        "type": "image",
+        "imageId": null,
+        "color": "#0B0D14",
+        "gradientFrom": "#1B2A4A",
+        "gradientTo": "#F28A3C",
+        "gradientAngle": 180,
+        "focal": {
+          "x": 0.6,
+          "y": 0.3
+        },
+        "blur": 0
+      },
+      "typography": {
+        "display": "kaushan-script",
+        "hand": "caveat",
+        "body": "inter",
+        "nameScale": 1.0
+      },
+      "cards": {
+        "style": "glass",
+        "radius": 28,
+        "showThumbnail": true,
+        "thumbnailSide": "left",
+        "density": "comfortable",
+        "blur": 20
+      },
+      "social": {
+        "position": "right",
+        "showCounts": true,
+        "shape": "circle"
+      },
+      "layout": {
+        "showTagline": true,
+        "showCrown": true,
+        "showStats": true,
+        "showCategories": true,
+        "footerText": "Let's connect"
+      },
+      "motion": {
+        "enabled": true
+      }
+    }
+  },
+  {
+    "id": "midnight-blue",
+    "name": "Midnight Blue",
+    "config": {
+      "version": 1,
+      "preset": "midnight-blue",
+      "colors": {
+        "accent": "#7AA7FF",
+        "text": "#FFFFFF",
+        "textMuted": "#FFFFFF9E",
+        "cardBg": "#0B1330",
+        "cardBgOpacity": 0.6,
+        "cardBorder": "#9DB8FF",
+        "cardBorderOpacity": 0.18,
+        "overlay": "#040816",
+        "overlayStrength": 0.92,
+        "statGlow": "#4C7DFF"
+      },
+      "background": {
+        "type": "image",
+        "imageId": null,
+        "color": "#0B0D14",
+        "gradientFrom": "#0A1A3F",
+        "gradientTo": "#3A5BA8",
+        "gradientAngle": 180,
+        "focal": {
+          "x": 0.6,
+          "y": 0.3
+        },
+        "blur": 0
+      },
+      "typography": {
+        "display": "yellowtail",
+        "hand": "caveat",
+        "body": "inter",
+        "nameScale": 1.0
+      },
+      "cards": {
+        "style": "glass",
+        "radius": 28,
+        "showThumbnail": true,
+        "thumbnailSide": "left",
+        "density": "comfortable",
+        "blur": 20
+      },
+      "social": {
+        "position": "right",
+        "showCounts": true,
+        "shape": "circle"
+      },
+      "layout": {
+        "showTagline": true,
+        "showCrown": true,
+        "showStats": true,
+        "showCategories": true,
+        "footerText": "Let's connect"
+      },
+      "motion": {
+        "enabled": true
+      }
+    }
+  },
+  {
+    "id": "emerald-night",
+    "name": "Emerald Night",
+    "config": {
+      "version": 1,
+      "preset": "emerald-night",
+      "colors": {
+        "accent": "#5FE0A8",
+        "text": "#FFFFFF",
+        "textMuted": "#FFFFFF9E",
+        "cardBg": "#07201A",
+        "cardBgOpacity": 0.62,
+        "cardBorder": "#A6F5D2",
+        "cardBorderOpacity": 0.16,
+        "overlay": "#03100C",
+        "overlayStrength": 0.9,
+        "statGlow": "#1FB57A"
+      },
+      "background": {
+        "type": "image",
+        "imageId": null,
+        "color": "#0B0D14",
+        "gradientFrom": "#062A22",
+        "gradientTo": "#1F7A5C",
+        "gradientAngle": 180,
+        "focal": {
+          "x": 0.6,
+          "y": 0.3
+        },
+        "blur": 0
+      },
+      "typography": {
+        "display": "marck-script",
+        "hand": "caveat",
+        "body": "inter",
+        "nameScale": 1.0
+      },
+      "cards": {
+        "style": "glass",
+        "radius": 28,
+        "showThumbnail": true,
+        "thumbnailSide": "left",
+        "density": "comfortable",
+        "blur": 20
+      },
+      "social": {
+        "position": "right",
+        "showCounts": true,
+        "shape": "circle"
+      },
+      "layout": {
+        "showTagline": true,
+        "showCrown": true,
+        "showStats": true,
+        "showCategories": true,
+        "footerText": "Let's connect"
+      },
+      "motion": {
+        "enabled": true
+      }
+    }
+  },
+  {
+    "id": "rose-gold",
+    "name": "Rose Gold",
+    "config": {
+      "version": 1,
+      "preset": "rose-gold",
+      "colors": {
+        "accent": "#F5B8A6",
+        "text": "#FFFFFF",
+        "textMuted": "#FFFFFF9E",
+        "cardBg": "#2A1518",
+        "cardBgOpacity": 0.58,
+        "cardBorder": "#FFD9CC",
+        "cardBorderOpacity": 0.2,
+        "overlay": "#140A0C",
+        "overlayStrength": 0.88,
+        "statGlow": "#E88B7A"
+      },
+      "background": {
+        "type": "image",
+        "imageId": null,
+        "color": "#0B0D14",
+        "gradientFrom": "#3B1E24",
+        "gradientTo": "#D9967F",
+        "gradientAngle": 180,
+        "focal": {
+          "x": 0.6,
+          "y": 0.3
+        },
+        "blur": 0
+      },
+      "typography": {
+        "display": "caveat-brush",
+        "hand": "reenie-beanie",
+        "body": "inter",
+        "nameScale": 1.0
+      },
+      "cards": {
+        "style": "glass",
+        "radius": 22,
+        "showThumbnail": true,
+        "thumbnailSide": "left",
+        "density": "comfortable",
+        "blur": 20
+      },
+      "social": {
+        "position": "right",
+        "showCounts": true,
+        "shape": "circle"
+      },
+      "layout": {
+        "showTagline": true,
+        "showCrown": true,
+        "showStats": true,
+        "showCategories": true,
+        "footerText": "Let's connect"
+      },
+      "motion": {
+        "enabled": true
+      }
+    }
+  },
+  {
+    "id": "clean-light",
+    "name": "Clean Light",
+    "config": {
+      "version": 1,
+      "preset": "clean-light",
+      "colors": {
+        "accent": "#C2410C",
+        "text": "#111318",
+        "textMuted": "#3D424DDB",
+        "cardBg": "#FFFFFF",
+        "cardBgOpacity": 0.78,
+        "cardBorder": "#111318",
+        "cardBorderOpacity": 0.1,
+        "overlay": "#F7F5F2",
+        "overlayStrength": 0.9,
+        "statGlow": "#FFB067"
+      },
+      "background": {
+        "type": "gradient",
+        "imageId": null,
+        "color": "#0B0D14",
+        "gradientFrom": "#FDF6EE",
+        "gradientTo": "#EADFD3",
+        "gradientAngle": 180,
+        "focal": {
+          "x": 0.6,
+          "y": 0.3
+        },
+        "blur": 0
+      },
+      "typography": {
+        "display": "kaushan-script",
+        "hand": "caveat",
+        "body": "inter",
+        "nameScale": 1.0
+      },
+      "cards": {
+        "style": "solid",
+        "radius": 24,
+        "showThumbnail": true,
+        "thumbnailSide": "left",
+        "density": "comfortable",
+        "blur": 12
+      },
+      "social": {
+        "position": "right",
+        "showCounts": true,
+        "shape": "circle"
+      },
+      "layout": {
+        "showTagline": true,
+        "showCrown": true,
+        "showStats": true,
+        "showCategories": true,
+        "footerText": "Let's connect"
+      },
+      "motion": {
+        "enabled": true
+      }
+    }
+  }
+]

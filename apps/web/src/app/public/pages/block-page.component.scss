@@ -1,0 +1,142 @@
+.items {
+  list-style: none;
+  margin: 24px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lm-card-gap);
+}
+
+.item {
+  overflow: hidden;
+}
+
+.item__img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: var(--lm-surface);
+}
+
+.item__embed {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: var(--lm-surface);
+
+  iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+}
+
+.item__embed--audio {
+  aspect-ratio: auto;
+  height: 152px;
+}
+
+.item__body {
+  padding: 16px 18px 18px;
+}
+
+.item__title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.item__desc {
+  margin: 6px 0 0;
+  color: var(--lm-text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.item__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--lm-touch);
+  margin-top: 6px;
+  color: var(--lm-accent);
+  font-weight: 600;
+  text-decoration: none;
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--lm-focus-ring);
+    border-radius: 8px;
+  }
+}
+
+.grid {
+  list-style: none;
+  margin: 24px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--lm-card-gap);
+}
+
+.prod {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--lm-text);
+  text-decoration: none;
+  height: 100%;
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--lm-focus-ring);
+  }
+}
+
+.prod__img {
+  position: relative;
+  aspect-ratio: 1;
+  background: var(--lm-surface);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.prod__badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--lm-surface-strong);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.prod__title {
+  padding: 12px 14px 0;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.prod__price {
+  padding: 4px 14px 14px;
+  color: var(--lm-accent);
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.empty {
+  margin-top: 24px;
+  color: var(--lm-text-muted);
+}
+
+@media (min-width: 640px) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

@@ -1,0 +1,106 @@
+@let p = page();
+@let th = t();
+<div class="lm-page {{ classes() }}" [style]="style()">
+  <div class="lm-scope">
+    <lm-page-background [theme]="th" [image]="bgImage()" />
+
+    @if (p.preview) {
+      <p class="preview-banner" role="status">{{ 'public.previewBanner' | t }}</p>
+    }
+
+    <header class="top" #top>
+      <lm-brand-logo class="top__logo" />
+      <div class="top__actions">
+        <button type="button" lmIconButton icon="globe" [text]="'public.myLinks' | t" [iconSize]="18" (click)="sheetOpen.set(true); linkClick.emit({ kind: 'mylinks', target: 'mylinks' })" aria-haspopup="dialog"></button>
+        <button type="button" lmIconButton icon="ellipsis" [attr.aria-label]="'public.more' | t" (click)="menuOpen.set(true)" aria-haspopup="dialog"></button>
+      </div>
+    </header>
+
+    <main class="main">
+      <section class="hero" [class.hero--rail-left]="th.social.position === 'left'">
+        @if (th.layout.showTagline && profile().taglineLines.length) {
+          <div class="tagline">
+            @if (th.layout.showCrown) {
+              <lm-crown class="tagline__crown" [size]="24" [weight]="2.4" />
+            }
+            <p class="tagline__text">
+              @for (line of profile().taglineLines; track $index) {
+                <span>{{ line }}</span>
+              }
+            </p>
+            <lm-swash class="tagline__swash" variant="small" />
+          </div>
+        }
+
+        <lm-script-name class="identity__name" [name]="profile().displayName" [showCrown]="th.layout.showCrown" />
+
+        @if (th.layout.showCategories && categories().length) {
+          <p class="categories">
+            @for (c of categories(); track $index) {
+              @if (!$first) {
+                <span class="categories__dot" aria-hidden="true">•</span>
+              }
+              <span>{{ c }}</span>
+            }
+          </p>
+        }
+
+        <div class="identity">
+
+          @if (profile().bio) {
+            <p class="bio">{{ profile().bio }}</p>
+          }
+
+          @if (th.layout.showStats && p.stats) {
+            <lm-stats-row class="stats" [stats]="p.stats" />
+          }
+
+          @if (socialRow() && p.socials.length) {
+            <lm-social-rail class="rail rail--row" orientation="row" [socials]="p.socials" [showCounts]="th.social.showCounts" (activate)="linkClick.emit({ kind: 'social', target: 'social:' + $event })" />
+          }
+        </div>
+
+        @if (!socialRow() && p.socials.length) {
+          <lm-social-rail class="rail" [socials]="p.socials" [showCounts]="th.social.showCounts" (activate)="linkClick.emit({ kind: 'social', target: 'social:' + $event })" />
+        }
+      </section>
+
+      <nav class="cards" #cards [attr.aria-label]="profile().displayName">
+        @for (b of blocks(); track b.id; let i = $index) {
+          <lm-link-card
+            [link]="blockLink(b)"
+            [title]="b.title"
+            [subtitle]="b.subtitle"
+            [icon]="b.icon"
+            [thumbnail]="thumb(b)"
+            [showThumbnail]="th.cards.showThumbnail"
+            [index]="i"
+            (activate)="linkClick.emit({ kind: 'block', blockId: b.id, target: 'block:' + b.slug })"
+          />
+        }
+      </nav>
+    </main>
+
+    <footer class="foot">
+      <button type="button" class="foot__scroll" lmIconButton [icon]="atLinks() ? 'chevron-up' : 'chevron-down'" [attr.aria-label]="(atLinks() ? 'public.scrollUp' : 'public.scrollDown') | t" (click)="scrollToggle()"></button>
+      @if (th.layout.footerText) {
+        <div class="foot__connect">
+          <span class="foot__connect-text">{{ th.layout.footerText }}</span>
+          <lm-swash class="foot__connect-swash" variant="small" />
+          <lm-icon class="foot__heart" name="heart" [size]="20" [strokeWidth]="1.5" />
+        </div>
+      }
+      @if (p.showBranding) {
+        <lm-powered-by class="foot__brand" />
+      }
+    </footer>
+  </div>
+
+  <!-- feuilles chargées à la demande : aucun coût sur le rendu initial -->
+  @defer (when sheetOpen()) {
+    <lm-my-links-sheet [open]="sheetOpen()" [page]="p" [pageUrl]="pageUrl()" (closed)="sheetOpen.set(false)" (linkClick)="linkClick.emit($event)" />
+  }
+  @defer (when menuOpen()) {
+    <lm-more-menu [open]="menuOpen()" [page]="p" [pageUrl]="pageUrl()" (closed)="menuOpen.set(false)" />
+  }
+</div>
