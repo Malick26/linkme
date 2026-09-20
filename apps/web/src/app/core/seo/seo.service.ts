@@ -1,4 +1,5 @@
-import { DOCUMENT, Injectable, inject } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
+import { DOCUMENT, Injectable, PLATFORM_ID, inject } from '@angular/core';
 import { Meta, Title } from '@angular/platform-browser';
 import { BRAND_NAME } from '../config/brand';
 import { RUNTIME_CONFIG } from '../config/runtime-config';
@@ -19,6 +20,8 @@ export class SeoService {
   private readonly doc = inject(DOCUMENT);
   private readonly cfg = inject(RUNTIME_CONFIG);
   private readonly preloaded = new Set<string>();
+  /** Le pré-rendu tourne sur un serveur local : son origine ne doit jamais finir dans un canonical. */
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   set(d: SeoData): void {
     const base = this.cfg.publicBaseUrl.replace(/\/$/, '');
@@ -44,13 +47,20 @@ export class SeoService {
     for (const [key, content, attr] of tags) {
       this.meta.updateTag({ [attr]: key, content }, `${attr}="${key}"`);
     }
+    // Sur une route pré-rendue au build, l'URL publique n'est pas connue : plutôt que d'écrire
+    // un canonical relatif (invalide), on n'en pose pas — et on le complète dans le navigateur.
+    const canonical = base ? url : this.isBrowser ? `${this.doc.defaultView!.location.origin}${d.path}` : null;
     let link = this.doc.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    if (!canonical) {
+      link?.remove();
+      return;
+    }
     if (!link) {
       link = this.doc.createElement('link');
       link.rel = 'canonical';
       this.doc.head.appendChild(link);
     }
-    link.href = url;
+    link.href = canonical;
   }
 
   /** Précharge une ressource critique (image LCP, police du nom) — dédupliqué. */

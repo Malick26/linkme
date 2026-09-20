@@ -1,60 +1,77 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BrandLogoComponent, IconComponent } from '../../design-system';
-import { BRAND_NAME } from '../core/config/brand';
+import type { IconName } from '../../design-system';
+import { BRAND_NAME, DEMO_HANDLE, PUBLIC_BASE_URL_FALLBACK } from '../core/config/brand';
+import type { I18nKey } from '../core/i18n/fr';
 import { I18n, TPipe } from '../core/i18n/i18n.service';
 import { SeoService } from '../core/seo/seo.service';
+import { LANDING_PALETTES, type LandingPalette } from '../core/theme/landing-palettes';
 
+/** Page d'accueil publique : ce que fait le produit, pour qui, et comment commencer. */
 @Component({
   selector: 'app-landing',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, BrandLogoComponent, IconComponent, TPipe],
-  template: `
-    <div class="ld">
-      <header class="ld__top">
-        <lm-brand-logo />
-        <a routerLink="/login" class="ld__login">{{ 'site.hero.login' | t }}</a>
-      </header>
-      <main class="ld__main">
-        <h1>{{ 'site.hero.title' | t }}</h1>
-        <p class="ld__text">{{ 'site.hero.text' | t }}</p>
-        <div class="ld__ctas">
-          <a routerLink="/register" class="ld__cta">{{ 'site.hero.cta' | t }}</a>
-          <a routerLink="/malick" class="ld__demo">{{ 'site.hero.demo' | t }} <lm-icon name="arrow-right" [size]="18" /></a>
-        </div>
-        <ul class="ld__features" role="list">
-          <li><lm-icon name="sparkles" [size]="20" />{{ 'site.feature.proof' | t }}</li>
-          <li><lm-icon name="shopping-bag" [size]="20" />{{ 'site.feature.shop' | t }}</li>
-          <li><lm-icon name="palette" [size]="20" />{{ 'site.feature.design' | t }}</li>
-        </ul>
-      </main>
-      <footer class="ld__foot">
-        <a routerLink="/legal/mentions">{{ 'site.footer.legal' | t }}</a>
-        <a routerLink="/legal/confidentialite">{{ 'site.footer.privacy' | t }}</a>
-        <a routerLink="/legal/cgu">{{ 'site.footer.terms' | t }}</a>
-      </footer>
-    </div>
-  `,
-  styles: `
-    .ld { min-height: 100svh; display: flex; flex-direction: column; background: var(--lm-overlay-gradient, var(--lm-overlay)), var(--lm-overlay); color: var(--lm-text); padding: 20px 20px 28px; max-width: 1100px; margin: 0 auto; }
-    .ld__top { display: flex; justify-content: space-between; align-items: center; }
-    .ld__login { color: var(--lm-text); min-height: 44px; display: inline-flex; align-items: center; text-decoration: none; font-weight: 500; }
-    .ld__main { flex: 1; display: flex; flex-direction: column; justify-content: center; max-width: 640px; padding: 48px 0; }
-    h1 { margin: 0; font-size: clamp(34px, 7vw, 60px); line-height: 1.05; letter-spacing: -.02em; }
-    .ld__text { margin: 18px 0 0; color: var(--lm-text-muted); font-size: 18px; line-height: 1.5; }
-    .ld__ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
-    .ld__cta, .ld__demo { display: inline-flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 24px; border-radius: 999px; text-decoration: none; font-weight: 600; }
-    .ld__cta { background: var(--lm-accent); color: var(--lm-overlay); }
-    .ld__demo { border: 1px solid var(--lm-control-border); color: var(--lm-text); }
-    .ld__features { list-style: none; padding: 0; margin: 36px 0 0; display: grid; gap: 12px; color: var(--lm-text-muted); }
-    .ld__features li { display: flex; gap: 10px; align-items: center; }
-    .ld__foot { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 13px; }
-    .ld__foot a { color: var(--lm-text-muted); min-height: 44px; display: inline-flex; align-items: center; }
-  `,
+  templateUrl: './landing.component.html',
+  styleUrl: './landing.component.scss',
 })
 export class LandingComponent {
+  protected readonly brand = BRAND_NAME;
+  protected readonly demoHandle = DEMO_HANDLE;
+  /** « linkme.sn » — le domaine tel qu'il apparaîtra dans le lien du créateur. */
+  protected readonly domain = PUBLIC_BASE_URL_FALLBACK.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  protected readonly palettes = LANDING_PALETTES;
+  protected readonly palette = signal<LandingPalette>(LANDING_PALETTES[0]);
+
+  protected readonly mockCards: { title: I18nKey; sub: I18nKey }[] = [
+    { title: 'site.mock.card1', sub: 'site.mock.card1s' },
+    { title: 'site.mock.card2', sub: 'site.mock.card2s' },
+    { title: 'site.mock.card3', sub: 'site.mock.card3s' },
+    { title: 'site.mock.card4', sub: 'site.mock.card4s' },
+  ];
+
+  protected readonly steps: { n: number; title: I18nKey; text: I18nKey }[] = [
+    { n: 1, title: 'site.step1.title', text: 'site.step1.text' },
+    { n: 2, title: 'site.step2.title', text: 'site.step2.text' },
+    { n: 3, title: 'site.step3.title', text: 'site.step3.text' },
+  ];
+
+  protected readonly features: { icon: IconName; title: I18nKey; text: I18nKey }[] = [
+    { icon: 'palette', title: 'site.f1.title', text: 'site.f1.text' },
+    { icon: 'store', title: 'site.f2.title', text: 'site.f2.text' },
+    { icon: 'sparkles', title: 'site.f3.title', text: 'site.f3.text' },
+    { icon: 'chart-column', title: 'site.f4.title', text: 'site.f4.text' },
+    { icon: 'inbox', title: 'site.f5.title', text: 'site.f5.text' },
+    { icon: 'share-2', title: 'site.f6.title', text: 'site.f6.text' },
+  ];
+
+  protected readonly shopBullets: I18nKey[] = ['site.shop.b1', 'site.shop.b2', 'site.shop.b3'];
+
+  protected readonly faq: { q: I18nKey; a: I18nKey }[] = [
+    { q: 'site.faq.q1', a: 'site.faq.a1' },
+    { q: 'site.faq.q2', a: 'site.faq.a2' },
+    { q: 'site.faq.q3', a: 'site.faq.a3' },
+    { q: 'site.faq.q4', a: 'site.faq.a4' },
+    { q: 'site.faq.q5', a: 'site.faq.a5' },
+  ];
+
+  /** Les couleurs de l'aperçu sont posées en variables CSS : même principe que les thèmes réels. */
+  protected readonly mockVars = computed(() => {
+    const p = this.palette();
+    return `--mk-from:${p.from};--mk-to:${p.to};--mk-accent:${p.accent};--mk-text:${p.text};--mk-muted:${p.muted};--mk-card:${p.card};--mk-border:${p.border}`;
+  });
+
   constructor() {
     const i18n = inject(I18n);
-    inject(SeoService).set({ title: `${BRAND_NAME} — ${i18n.t('site.hero.title')}`, description: i18n.t('site.hero.text'), path: '/' });
+    inject(SeoService).set({
+      title: `${BRAND_NAME} — ${i18n.t('site.hero.title2')}`,
+      description: i18n.t('site.hero.text2'),
+      path: '/',
+    });
+  }
+
+  protected pick(p: LandingPalette): void {
+    this.palette.set(p);
   }
 }

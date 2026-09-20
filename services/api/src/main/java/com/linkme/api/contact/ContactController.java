@@ -49,11 +49,19 @@ public class ContactController {
     public record ContactInput(
             @NotBlank @Size(max = 80) String name,
             @Email @Size(max = 254) String email,
-            @Pattern(regexp = "^\\+?[0-9 ]{8,20}$") String phone,
+            // le visiteur écrit son numéro comme il veut : espaces, points, tirets, parenthèses
+            @Pattern(regexp = "^\\s*\\+?[0-9 .()-]{8,24}\\s*$", message = "Numéro de téléphone invalide.") String phone,
             @NotBlank @Size(min = 5, max = 2000) String message,
             @Size(max = 200) String website) {}
 
     public record ContactMessageDto(UUID id, String name, String email, String phone, String message, Instant createdAt) {}
+
+    /** « (221) 77-123-45-67 » → « +221771234567 » : on ne garde que l'indicatif et les chiffres. */
+    static String normalizePhone(String raw) {
+        String s = raw.trim();
+        String plus = s.startsWith("+") ? "+" : "";
+        return plus + s.replaceAll("\\D", "");
+    }
 
     public record ContactMessagePage(List<ContactMessageDto> items, PageMeta page) {}
 
@@ -67,8 +75,11 @@ public class ContactController {
         boolean hasEmail = in.email() != null && !in.email().isBlank();
         boolean hasPhone = in.phone() != null && !in.phone().isBlank();
         if (!hasEmail && !hasPhone) throw ApiException.validation("email", "Indique un email ou un numéro de téléphone.");
+        String phone = hasPhone ? normalizePhone(in.phone()) : null;
+        if (phone != null && (phone.replaceAll("\\D", "").length() < 8 || phone.replaceAll("\\D", "").length() > 15))
+            throw ApiException.validation("phone", "Numéro de téléphone invalide.");
         ContactMessage m = messages.save(new ContactMessage(p.getUserId(), in.name().trim(), hasEmail ? in.email().trim() : null,
-                hasPhone ? in.phone().trim() : null, in.message().trim(), clock.instant()));
+                phone, in.message().trim(), clock.instant()));
         String safeName = m.getName().replaceAll("[\\r\\n]", " ");
         users.findById(p.getUserId()).ifPresent(u -> mail.send(u.getEmail(), "Nouveau message de " + safeName,
                 "Tu as reçu un message via ta page :\n\n" + m.getMessage() + "\n\n— " + m.getName()

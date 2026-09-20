@@ -1,0 +1,168 @@
+<div class="ld">
+  <header class="ld__top">
+    <a routerLink="/" class="ld__brand" aria-label="{{ brand }}"><lm-brand-logo /></a>
+    <nav class="ld__nav">
+      <a href="#fonctionnalites" class="ld__navlink">{{ 'site.nav.features' | t }}</a>
+      <a href="#tarifs" class="ld__navlink">{{ 'site.nav.pricing' | t }}</a>
+      <a routerLink="/login" class="ld__navlink ld__navlink--always">{{ 'site.nav.login' | t }}</a>
+      <a routerLink="/register" class="ld__btn ld__btn--primary ld__btn--sm">{{ 'site.nav.cta' | t }}</a>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Promesse + démonstration du thème configurable -->
+    <section class="hero">
+      <div class="hero__txt">
+        <p class="hero__badge">{{ 'site.hero.badge' | t }}</p>
+        <h1>{{ 'site.hero.title2' | t }}</h1>
+        <p class="hero__lead">{{ 'site.hero.text2' | t }}</p>
+        <div class="hero__ctas">
+          <a routerLink="/register" class="ld__btn ld__btn--primary">{{ 'site.hero.cta' | t }}</a>
+          @if (demoHandle) {
+            <a [routerLink]="['/', demoHandle]" class="ld__btn">{{ 'site.hero.demo' | t }} <lm-icon name="arrow-right" [size]="18" /></a>
+          }
+        </div>
+        <p class="hero__trust">{{ 'site.hero.trust' | t }}</p>
+      </div>
+
+      <div class="hero__demo">
+        <div class="phone" [style]="mockVars()" [attr.aria-label]="'site.mock.aria' | t: { name: palette().label }" role="img">
+          <div class="phone__screen">
+            <div class="phone__bg"></div>
+            <div class="phone__content">
+              <p class="phone__tag">{{ 'site.mock.tagline' | t }}</p>
+              <p class="phone__name">{{ 'site.mock.name' | t }}</p>
+              <p class="phone__cats">{{ 'site.mock.cats' | t }}</p>
+              <div class="phone__stats">
+                <span><strong>245K</strong>{{ 'site.mock.followers' | t }}</span>
+                <span><strong>8.4M</strong>{{ 'site.mock.likes' | t }}</span>
+                <span><strong>12M</strong>{{ 'site.mock.views' | t }}</span>
+              </div>
+              @for (c of mockCards; track c.title) {
+                <div class="phone__card">
+                  <span class="phone__thumb"></span>
+                  <span class="phone__ct"><strong>{{ c.title | t }}</strong><small>{{ c.sub | t }}</small></span>
+                  <lm-icon name="arrow-right" [size]="16" />
+                </div>
+              }
+              <p class="phone__link">{{ domain }}/{{ 'site.mock.handle' | t }}</p>
+            </div>
+          </div>
+        </div>
+        <div class="swatches">
+          <span class="swatches__label">{{ 'site.mock.try' | t }}</span>
+          @for (p of palettes; track p.id) {
+            <button type="button" class="swatch" [class.swatch--on]="p.id === palette().id" (click)="pick(p)"
+                    [style.--sw]="p.accent" [style.--sw2]="p.from" [attr.aria-pressed]="p.id === palette().id" [attr.aria-label]="p.label">
+              <span class="lm-sr-only">{{ p.label }}</span>
+            </button>
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- Trois étapes -->
+    <section class="sec">
+      <h2 class="sec__title">{{ 'site.steps.title' | t }}</h2>
+      <ol class="steps">
+        @for (s of steps; track s.n) {
+          <li class="step">
+            <span class="step__n" aria-hidden="true">{{ s.n }}</span>
+            <h3>{{ s.title | t }}</h3>
+            <p>{{ s.text | t }}</p>
+          </li>
+        }
+      </ol>
+    </section>
+
+    <!-- Fonctionnalités -->
+    <section class="sec" id="fonctionnalites" tabindex="-1">
+      <h2 class="sec__title">{{ 'site.features.title' | t }}</h2>
+      <ul class="feats" role="list">
+        @for (f of features; track f.title) {
+          <li class="feat">
+            <span class="feat__ic"><lm-icon [name]="f.icon" [size]="22" /></span>
+            <h3>{{ f.title | t }}</h3>
+            <p>{{ f.text | t }}</p>
+          </li>
+        }
+      </ul>
+    </section>
+
+    <!-- Boutique -->
+    <section class="sec shop">
+      <div class="shop__txt">
+        <h2 class="sec__title">{{ 'site.shop.title' | t }}</h2>
+        <p class="sec__lead">{{ 'site.shop.text' | t }}</p>
+        <ul class="ticks" role="list">
+          @for (b of shopBullets; track b) {
+            <li><lm-icon name="circle-check" [size]="20" />{{ b | t }}</li>
+          }
+        </ul>
+        <a routerLink="/register" class="ld__btn ld__btn--primary">{{ 'site.hero.cta' | t }}</a>
+      </div>
+      <div class="checkout" aria-hidden="true">
+        <div class="checkout__row"><span class="checkout__k">{{ 'site.checkout.product' | t }}</span><span class="checkout__v">{{ 'site.checkout.price' | t }}</span></div>
+        <div class="checkout__row"><span class="checkout__k">{{ 'site.checkout.providers' | t }}</span><span class="checkout__pill">{{ 'site.checkout.pill' | t }}</span></div>
+        <div class="checkout__btn">{{ 'site.checkout.pay' | t }}</div>
+        <p class="checkout__note"><lm-icon name="circle-check" [size]="16" />{{ 'site.checkout.note' | t }}</p>
+      </div>
+    </section>
+
+    <!-- Tarifs -->
+    <section class="sec" id="tarifs" tabindex="-1">
+      <h2 class="sec__title">{{ 'site.pricing.title' | t }}</h2>
+      <div class="plans">
+        <div class="plan plan--main">
+          <h3>{{ 'site.pricing.free.name' | t }}</h3>
+          <p class="plan__price">{{ 'site.pricing.free.price' | t }} <small>{{ 'site.pricing.free.note' | t }}</small></p>
+          <ul class="ticks" role="list">
+            <li><lm-icon name="circle-check" [size]="20" />{{ 'site.pricing.free.l1' | t }}</li>
+            <li><lm-icon name="circle-check" [size]="20" />{{ 'site.pricing.free.l2' | t }}</li>
+            <li><lm-icon name="circle-check" [size]="20" />{{ 'site.pricing.free.l3' | t }}</li>
+            <li><lm-icon name="circle-check" [size]="20" />{{ 'site.pricing.free.l4' | t }}</li>
+          </ul>
+          <a routerLink="/register" class="ld__btn ld__btn--primary">{{ 'site.hero.cta' | t }}</a>
+        </div>
+        <div class="plan">
+          <h3>{{ 'site.pricing.pro.name' | t }} <span class="plan__badge">{{ 'site.pricing.pro.badge' | t }}</span></h3>
+          <ul class="ticks" role="list">
+            <li><lm-icon name="circle-check" [size]="20" />{{ 'site.pricing.pro.l1' | t }}</li>
+            <li><lm-icon name="circle-check" [size]="20" />{{ 'site.pricing.pro.l2' | t }}</li>
+            <li><lm-icon name="circle-check" [size]="20" />{{ 'site.pricing.pro.l3' | t }}</li>
+          </ul>
+        </div>
+      </div>
+      <p class="plans__note">{{ 'site.pricing.commission' | t }}</p>
+    </section>
+
+    <!-- FAQ -->
+    <section class="sec">
+      <h2 class="sec__title">{{ 'site.faq.title' | t }}</h2>
+      <div class="faq">
+        @for (f of faq; track f.q) {
+          <details class="faq__item">
+            <summary>{{ f.q | t }}<lm-icon name="chevron-down" [size]="20" /></summary>
+            <p>{{ f.a | t }}</p>
+          </details>
+        }
+      </div>
+    </section>
+
+    <!-- Dernier appel -->
+    <section class="final">
+      <h2>{{ 'site.final.title' | t }}</h2>
+      <p>{{ 'site.final.text' | t }}</p>
+      <a routerLink="/register" class="ld__btn ld__btn--primary">{{ 'site.hero.cta' | t }}</a>
+    </section>
+  </main>
+
+  <footer class="ld__foot">
+    <span class="ld__made">{{ 'site.footer.made' | t }}</span>
+    <nav class="ld__footnav">
+      <a routerLink="/legal/mentions">{{ 'site.footer.legal' | t }}</a>
+      <a routerLink="/legal/confidentialite">{{ 'site.footer.privacy' | t }}</a>
+      <a routerLink="/legal/cgu">{{ 'site.footer.terms' | t }}</a>
+    </nav>
+  </footer>
+</div>

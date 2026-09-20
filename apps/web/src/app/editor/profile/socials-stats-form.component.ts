@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, output, signal } from '@angular/core';
 import { IconComponent, PLATFORM_LABELS } from '../../../design-system';
 import type { SocialAccountInput, SocialPlatform } from '../../core/api/types';
 import { TPipe } from '../../core/i18n/i18n.service';
@@ -14,11 +14,13 @@ const PLATFORMS: SocialPlatform[] = ['tiktok', 'instagram', 'youtube', 'snapchat
   template: `
     <div class="ed-stack">
       <h2>{{ 'profile.socials' | t }}</h2>
+      <p class="ed-muted">{{ 'profile.socialsHint' | t }}</p>
       @for (s of socials(); track $index; let i = $index) {
         <div class="soc">
-          <select class="ed-input" [value]="s.platform" (change)="update(i, { platform: $any($event.target).value })" [attr.aria-label]="'profile.platform' | t">
+          <!-- [selected] et non [value] : sur un <select>, Angular pose la valeur avant que les options existent -->
+          <select class="ed-input" (change)="update(i, { platform: $any($event.target).value })" [attr.aria-label]="'profile.platform' | t">
             @for (p of platforms; track p) {
-              <option [value]="p" [disabled]="taken(p, i)">{{ labels[p] }}</option>
+              <option [value]="p" [selected]="p === s.platform" [disabled]="taken(p, i)">{{ labels[p] }}</option>
             }
           </select>
           <input class="ed-input" type="url" inputmode="url" [value]="s.url" placeholder="https://" (input)="update(i, { url: $any($event.target).value })" [attr.aria-label]="'profile.url' | t" />
@@ -55,6 +57,8 @@ const PLATFORMS: SocialPlatform[] = ['tiktok', 'instagram', 'youtube', 'snapchat
   `,
 })
 export class SocialsStatsFormComponent {
+  /** Émis à chaque modification : la page parente déclenche l'enregistrement automatique. */
+  readonly dirty = output<void>();
   protected readonly store = inject(EditorStore);
   protected readonly platforms = PLATFORMS;
   protected readonly labels = PLATFORM_LABELS;
@@ -81,6 +85,7 @@ export class SocialsStatsFormComponent {
   private sync(list: SocialAccountInput[]): void {
     this.socials.set(list);
     this.store.setSocialsLocal(list);
+    this.dirty.emit();
   }
 
   protected update(i: number, patch: Partial<SocialAccountInput>): void {
@@ -105,6 +110,7 @@ export class SocialsStatsFormComponent {
   protected stat(k: 'followers' | 'likes' | 'views30d', v: string): void {
     this.stats.update((s) => ({ ...s, [k]: this.toInt(v) }));
     this.store.setStatsLocal(this.stats());
+    this.dirty.emit();
   }
 
   /** Enregistre réseaux (liens complets uniquement) + stats. */

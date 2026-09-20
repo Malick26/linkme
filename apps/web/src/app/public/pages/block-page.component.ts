@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
@@ -8,6 +9,7 @@ import type { BlockItem } from '../../core/api/types';
 import { PublicApi } from '../../core/api/public-api.service';
 import { formatXof } from '../../core/format/compact-number';
 import { imageUrl } from '../../core/images/image-url';
+import type { I18nKey } from '../../core/i18n/fr';
 import { I18n, TPipe } from '../../core/i18n/i18n.service';
 import { SeoService } from '../../core/seo/seo.service';
 import { BlockShellComponent } from '../view/block-shell.component';
@@ -24,7 +26,7 @@ const EMBED_ALLOW = [
 @Component({
   selector: 'app-block-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [BlockShellComponent, GlassCardComponent, IconComponent, RouterLink, TPipe, ContactFormComponent, NotFoundComponent],
+  imports: [BlockShellComponent, GlassCardComponent, IconComponent, RouterLink, TPipe, NgTemplateOutlet, ContactFormComponent, NotFoundComponent],
   templateUrl: './block-page.component.html',
   styleUrl: './block-page.component.scss',
 })
@@ -73,6 +75,29 @@ export class BlockPageComponent {
 
   protected isSpotify(item: BlockItem): boolean {
     return item.embed?.provider === 'spotify';
+  }
+
+  /** Élément dont la façade a été cliquée : lui seul charge son iframe. */
+  protected readonly playing = signal<string | null>(null);
+
+  protected play(item: BlockItem): void {
+    this.playing.set(item.id);
+    this.click(item);
+  }
+
+  /** Pluriel simple (fr/en) : une clé « .one », une clé « .other ». */
+  protected plural(base: 'public.block.count', n: number): I18nKey {
+    return `${base}.${n <= 1 ? 'one' : 'other'}` as I18nKey;
+  }
+
+  protected providerName(item: BlockItem): string {
+    return item.embed?.provider === 'spotify' ? 'Spotify' : item.embed?.provider === 'youtube' ? 'YouTube' : '';
+  }
+
+  protected linkLabel(item: BlockItem): I18nKey {
+    if (item.embed?.provider === 'spotify') return 'public.block.listenOn';
+    if (item.embed?.provider === 'youtube') return 'public.block.watchOn';
+    return 'public.block.open';
   }
 
   protected click(item: BlockItem): void {

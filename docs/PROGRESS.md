@@ -132,3 +132,35 @@ bloquant** ✅.
 **Gate 4** : Definition of Done (section 12) — tout est ✅ **sauf** les deux points qui exigent Docker/Maven :
 `docker compose up` et `./mvnw verify` (couverture ≥ 80 %). Ils sont écrits, câblés dans la CI GitHub Actions, et
 doivent être exécutés sur votre machine ou en CI (voir `docs/FINAL-REPORT.md`, § « À exécuter chez vous »).
+
+---
+
+## Revue utilisateur du 20/09/2026 — corrections
+
+Retour de Malick après installation : page d'accueil trop pauvre, réglages « sans effet », formulaire de contact qui
+refuse sans dire pourquoi, édition des blocs introuvable, et surtout : **le produit doit s'adresser à des milliers de
+créateurs, pas montrer la page de Malick**. Ce qui a été trouvé et corrigé :
+
+| Signalé | Cause réelle trouvée dans le code | Correction | Test qui empêche la rechute |
+|---|---|---|---|
+| « Je change mes contacts, ça ne fait pas effet » | Sur `<select>`, `[value]` est posé par Angular avant l'existence des options : **tous les réseaux s'affichaient en « TikTok »** | `[selected]` sur chaque `<option>` | e2e `profil : les réseaux gardent leur plateforme` |
+| « Les réglages ne sont pas pris en compte » | Le profil n'avait pas d'enregistrement automatique (contrairement à Design) : quitter l'écran perdait la saisie | Enregistrement automatique 1,2 s après la dernière frappe + vidage à la sortie (D41) | même test e2e (rechargement de la page) |
+| « La photo de fond ne fait rien depuis Profil, mais ça marche depuis Design » | Deux sources pour le fond : le thème l'emporte toujours (`PublicPageAssembler`) | Le profil affiche le fond rendu et renvoie vers `Design#fond` (D40) | e2e `la photo de fond renvoie vers Design` |
+| « Le formulaire de contact dit qu'un champ est vide alors que non » | `77-123-45-67` échouait sur un motif trop strict, avec un message générique | Numéro normalisé (front + API), message **sous le champ concerné** | 12 tests unitaires + 3 e2e de contact |
+| « Je ne vois pas où modifier les blocs voyages / sons / contenus » | L'édition était derrière une petite icône crayon parmi cinq | Ligne cliquable, bouton **Modifier** libellé, contenu du bloc résumé (« 3 éléments », « Aucun élément — ajoute le premier ») | capture `editor-blocks-1280.png` |
+| « L'aperçu d'un bloc peut être bien meilleur » | Iframe YouTube chargée d'emblée → grand cadre noir ; liste à une colonne | Façade image + bouton lecture (D43), grille 2–3 colonnes, compteur, état vide soigné, retour au profil | e2e page publique |
+| « Ce n'est pas un truc pour Malick » | L'accueil était un placeholder de 3 lignes | **Nouvelle page d'accueil** : promesse, aperçu interactif (4 ambiances cliquables), 3 étapes, 6 fonctionnalités, boutique, tarifs, FAQ, appels à l'action ; lien de démo optionnel (`DEMO_HANDLE`) (D39) | 6 e2e dont axe et cibles ≥ 44 px |
+
+Trouvés en vérifiant, non signalés : la connexion était **invisible sur mobile** depuis l'accueil, les pastilles
+d'ambiance et le logo faisaient moins de 44 px, et le canonical d'une route pré-rendue pointait sur le port du
+pré-rendu (D42).
+
+| Commande | Résultat après corrections |
+|---|---|
+| `npm run lint` | ✅ 112 fichiers, 0 couleur en dur, 0 erreur de type |
+| `npm test` | ✅ **75/75** |
+| `npm run e2e` | ✅ **19/19** (dont 5 régressions visuelles et 2 passages axe) |
+| `npm run e2e:fullstack` | ✅ **9/9** |
+| `node scripts/check-bundle.mjs` | ✅ 139,1 Ko gzip (limite 150) |
+| Lighthouse mobile `/` (nouvelle page d'accueil) | ✅ **100 · 100 · 100 · 100** |
+| Lighthouse mobile `/malick` | ✅ **98 · 100 · 100 · 100** |

@@ -1,3 +1,4 @@
+export type { IconName } from './icons/icon-registry';
 export { IconComponent } from './icons/icon.component';
 export { CrownComponent } from './primitives/crown.component';
 export { SwashComponent } from './primitives/swash.component';

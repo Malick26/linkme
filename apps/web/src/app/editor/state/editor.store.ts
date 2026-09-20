@@ -139,6 +139,11 @@ export class EditorStore {
     this.blocks.update((l) => l.filter((x) => x.id !== id).map((x, i) => ({ ...x, position: i })));
   }
 
+  /** Garde à jour le « n éléments » de la liste quand on ajoute ou retire un élément dans l'éditeur. */
+  setBlockItemCount(id: string, itemCount: number): void {
+    this.blocks.update((l) => l.map((b) => (b.id === id ? { ...b, itemCount } : b)));
+  }
+
   async reorderBlocks(ids: string[]): Promise<void> {
     const byId = new Map(this.blocks().map((b) => [b.id, b]));
     this.blocks.set(ids.map((id, i) => ({ ...byId.get(id)!, position: i }))); // optimiste

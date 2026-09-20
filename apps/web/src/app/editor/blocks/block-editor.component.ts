@@ -5,6 +5,7 @@ import { MeApi } from '../../core/api/me-api.service';
 import type { Block, BlockIcon, BlockInput, BlockItem } from '../../core/api/types';
 import { AuthStore } from '../../core/auth/auth.store';
 import { toProblem } from '../../core/http/problem';
+import type { I18nKey } from '../../core/i18n/fr';
 import { I18n, TPipe } from '../../core/i18n/i18n.service';
 import { ImageUploadComponent } from '../shared/image-upload.component';
 import { EditorStore } from '../state/editor.store';
@@ -59,6 +60,7 @@ const ICONS: BlockIcon[] = ['plane', 'shopping-bag', 'music', 'clapperboard', 'm
         <p class="ed-muted">{{ 'blocks.shopHint' | t }}</p>
       } @else if (b.type !== 'contact' && b.type !== 'link') {
         <h3 class="items__title">{{ 'blocks.items' | t }}</h3>
+        <p class="ed-muted">{{ itemsHint() | t }}</p>
         <ul class="items" role="list">
           @for (it of items(); track it.id; let i = $index) {
             <li class="item">
@@ -110,6 +112,11 @@ export class BlockEditorComponent implements OnInit {
     if (!['shop', 'contact', 'link'].includes(b.type)) void firstValueFrom(this.api.items(b.id)).then((l) => this.items.set(l));
   }
 
+  /** Ce qu'on met dans ce bloc, dit dans les mots du créateur. */
+  protected itemsHint(): I18nKey {
+    return `blocks.itemsHint.${this.block().type === 'music' ? 'music' : this.block().type === 'content' ? 'content' : 'travel'}` as I18nKey;
+  }
+
   protected patch(p: Partial<BlockInput>): void {
     this.draft.update((d) => ({ ...d, ...p }));
   }
@@ -141,6 +148,7 @@ export class BlockEditorComponent implements OnInit {
     await this.auth.ensureCsrf();
     const it = await firstValueFrom(this.api.createItem(this.block().id, { title: this.i18n.t('blocks.addItem') }));
     this.items.update((l) => [...l, it]);
+    this.store.setBlockItemCount(this.block().id, this.items().length);
   }
 
   protected async saveItem(it: BlockItem, patch: Partial<BlockItem>): Promise<void> {
@@ -159,6 +167,7 @@ export class BlockEditorComponent implements OnInit {
     await this.auth.ensureCsrf();
     await firstValueFrom(this.api.deleteItem(this.block().id, it.id));
     this.items.update((l) => l.filter((x) => x.id !== it.id));
+    this.store.setBlockItemCount(this.block().id, this.items().length);
   }
 
   protected async moveItem(i: number, d: number): Promise<void> {

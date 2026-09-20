@@ -26,6 +26,7 @@ const DEFAULT_ICON: Record<BlockType, string> = { travel: 'plane', shop: 'shoppi
         </div>
         <div class="split__edit">
           <div class="split__head"><h1>{{ 'blocks.title' | t }}</h1></div>
+          <p class="ed-muted">{{ 'blocks.hint2' | t }}</p>
           <p class="ed-muted">{{ 'blocks.hint' | t }}</p>
           @if (error()) {
             <p class="ed-error" role="alert">{{ error() }}</p>
@@ -36,13 +37,19 @@ const DEFAULT_ICON: Record<BlockType, string> = { travel: 'plane', shop: 'shoppi
                 <div class="bl__row">
                   <button type="button" class="bl__handle" cdkDragHandle [attr.aria-label]="b.title"><lm-icon name="grip-vertical" [size]="20" /></button>
                   <lm-icon class="bl__icon" [name]="b.icon ?? 'link'" [size]="20" />
-                  <div class="bl__text"><strong>{{ b.title }}</strong><span class="ed-muted">{{ typeKey(b.type) | t }} · /{{ b.slug }}</span></div>
+                  <button type="button" class="bl__text" (click)="toggleOpen(b.id)" [attr.aria-expanded]="open() === b.id" [attr.aria-label]="('blocks.edit' | t) + ' : ' + b.title">
+                    <strong>{{ b.title }}</strong>
+                    <span class="ed-muted">{{ typeKey(b.type) | t }} · {{ summary(b) | t: { n: b.itemCount ?? 0 } }}</span>
+                  </button>
                   <button type="button" class="ed-btn ed-btn--icon ed-btn--ghost" (click)="move(i, -1)" [disabled]="i === 0" [attr.aria-label]="('common.moveUp' | t) + ' : ' + b.title"><lm-icon name="arrow-up" [size]="18" /></button>
                   <button type="button" class="ed-btn ed-btn--icon ed-btn--ghost" (click)="move(i, 1)" [disabled]="last" [attr.aria-label]="('common.moveDown' | t) + ' : ' + b.title"><lm-icon name="arrow-down" [size]="18" /></button>
                   <label class="ed-switch" [title]="(b.visible ? 'blocks.visible' : 'blocks.hidden') | t">
                     <input type="checkbox" [checked]="b.visible" (change)="toggle(b)" [attr.aria-label]="(b.visible ? 'blocks.visible' : 'blocks.hidden') + ' ' + b.title" />
                   </label>
-                  <button type="button" class="ed-btn ed-btn--icon" (click)="open.set(open() === b.id ? null : b.id)" [attr.aria-expanded]="open() === b.id" [attr.aria-label]="('blocks.edit' | t) + ' : ' + b.title"><lm-icon name="pencil" [size]="18" /></button>
+                  <button type="button" class="ed-btn bl__edit" (click)="toggleOpen(b.id)" [attr.aria-expanded]="open() === b.id" [attr.aria-label]="('blocks.edit' | t) + ' : ' + b.title">
+                    <lm-icon [name]="open() === b.id ? 'x' : 'pencil'" [size]="18" />
+                    <span>{{ (open() === b.id ? 'blocks.close' : 'common.edit') | t }}</span>
+                  </button>
                 </div>
                 @if (open() === b.id) {
                   <div class="bl__editor"><ed-block-editor [block]="b" (closed)="open.set(null)" /></div>
@@ -78,6 +85,19 @@ export class BlocksPageComponent {
 
   protected typeKey(t: BlockType): I18nKey {
     return `blocks.type.${t}` as I18nKey;
+  }
+
+  /** Ce que contient le bloc, dit en clair sous son titre. */
+  protected summary(b: Block): I18nKey {
+    if (b.type === 'shop') return 'blocks.countShop';
+    if (b.type === 'contact') return 'blocks.countContact';
+    if (b.type === 'link') return 'blocks.countLink';
+    const n = b.itemCount ?? 0;
+    return n === 0 ? 'blocks.countEmpty' : n === 1 ? 'blocks.count.one' : 'blocks.count.other';
+  }
+
+  protected toggleOpen(id: string): void {
+    this.open.set(this.open() === id ? null : id);
   }
 
   protected async drop(e: CdkDragDrop<Block[]>): Promise<void> {

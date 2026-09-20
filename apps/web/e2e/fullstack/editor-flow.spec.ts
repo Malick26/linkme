@@ -105,3 +105,37 @@ test('mobile : onglets Édition / Aperçu', async ({ page }) => {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
 });
+
+test('profil : les réseaux gardent leur plateforme et s’enregistrent sans clic', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByLabel('Email').fill('malick@demo.linkme.sn');
+  await page.getByLabel('Mot de passe').fill('demo-malick-2026');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page).toHaveURL(/\/app/);
+  await page.goto('/app/profile');
+
+  // régression : chaque menu affichait « TikTok », quel que soit le réseau enregistré
+  await expect(page.locator('select').first()).toBeVisible();
+  const platforms = await page.locator('select').evaluateAll((els) => els.map((e) => (e as HTMLSelectElement).value));
+  expect(new Set(platforms).size).toBe(platforms.length);
+  expect(platforms).toContain('instagram');
+
+  // régression : les modifications se perdaient si on quittait la page sans cliquer sur « Enregistrer »
+  const save = page.waitForResponse((r) => r.url().includes('/api/me/stats') && r.request().method() === 'PUT');
+  await page.getByTestId('stat-followers').fill('777777');
+  await save;
+  await expect(page.getByRole('status').first()).toHaveText(/Enregistré/);
+
+  await page.reload();
+  await expect(page.getByTestId('stat-followers')).toHaveValue('777777');
+});
+
+test('profil : la photo de fond renvoie vers Design', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByLabel('Email').fill('malick@demo.linkme.sn');
+  await page.getByLabel('Mot de passe').fill('demo-malick-2026');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await page.goto('/app/profile');
+  await page.getByRole('link', { name: /Modifier dans Design/ }).click();
+  await expect(page).toHaveURL(/\/app\/design/);
+});

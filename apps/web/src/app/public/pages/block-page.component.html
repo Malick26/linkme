@@ -26,7 +26,7 @@
             }
           </ul>
         } @else {
-          <p class="empty">{{ 'public.block.empty' | t }}</p>
+          <ng-container *ngTemplateOutlet="empty; context: { name: p.profile.displayName }" />
         }
       }
       @case ('contact') {
@@ -34,13 +34,24 @@
       }
       @default {
         @if (d.items.length) {
+          <p class="count">{{ plural('public.block.count', d.items.length) | t: { n: d.items.length } }}</p>
           <ul class="items" role="list">
             @for (item of d.items; track item.id) {
               <li lmGlassCard class="item">
                 @if (embedUrl(item); as src) {
-                  <div class="item__embed" [class.item__embed--audio]="isSpotify(item)">
-                    <iframe [src]="src" [title]="item.title" loading="lazy" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
-                  </div>
+                  @if (playing() === item.id) {
+                    <div class="item__embed" [class.item__embed--audio]="isSpotify(item)">
+                      <iframe [src]="src" [title]="item.title" loading="lazy" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
+                    </div>
+                  } @else {
+                    <!-- façade : on ne charge la vidéo qu'au clic (rapidité + aucun cookie tiers avant l'action) -->
+                    <button type="button" class="item__facade" [class.item__facade--audio]="isSpotify(item)" (click)="play(item)" [attr.aria-label]="'public.block.play' | t: { title: item.title }">
+                      @if (item.image) {
+                        <img [src]="imageUrl(item.image, 800)" alt="" loading="lazy" width="800" height="450" />
+                      }
+                      <span class="item__play"><lm-icon [name]="isSpotify(item) ? 'music' : 'play'" [size]="26" /></span>
+                    </button>
+                  }
                 } @else if (item.image) {
                   <img class="item__img" [src]="imageUrl(item.image, 800)" alt="" loading="lazy" width="800" height="450" />
                 }
@@ -51,7 +62,7 @@
                   }
                   @if (item.url) {
                     <a class="item__link" [href]="item.url" target="_blank" rel="noopener noreferrer" (click)="click(item)">
-                      {{ 'public.block.open' | t }} <lm-icon name="external-link" [size]="16" />
+                      {{ linkLabel(item) | t: { provider: providerName(item) } }} <lm-icon name="external-link" [size]="16" />
                     </a>
                   }
                 </div>
@@ -59,9 +70,20 @@
             }
           </ul>
         } @else {
-          <p class="empty">{{ 'public.block.empty' | t }}</p>
+          <ng-container *ngTemplateOutlet="empty; context: { name: p.profile.displayName }" />
         }
       }
     }
+    <a class="back" [routerLink]="['/', p.profile.handle]">
+      <lm-icon name="arrow-left" [size]="18" />{{ 'public.block.backCta' | t: { name: p.profile.displayName } }}
+    </a>
   </lm-block-shell>
+
+  <ng-template #empty let-name="name">
+    <div class="empty" lmGlassCard>
+      <lm-icon class="empty__icon" [name]="d.block.icon ?? 'sparkles'" [size]="28" />
+      <h2 class="empty__title">{{ 'public.block.emptyTitle' | t }}</h2>
+      <p class="empty__text">{{ 'public.block.emptyText' | t: { name } }}</p>
+    </div>
+  </ng-template>
 }

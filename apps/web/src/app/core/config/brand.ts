@@ -8,5 +8,10 @@ export const BRAND_LOGO: { kind: 'script'; text: string } | { kind: 'image'; src
   kind: 'script',
   text: 'LinkMe',
 };
+/**
+ * Page d'exemple montrée depuis l'accueil (« Voir une page en exemple »).
+ * Chaîne vide → le bouton disparaît. À vider sur une installation sans seed de démonstration.
+ */
+export const DEMO_HANDLE = 'malick';
 export const PUBLIC_BASE_URL_FALLBACK = 'https://linkme.sn';
 export const REPORT_EMAIL = 'signalement@linkme.sn';
