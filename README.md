@@ -35,6 +35,11 @@ docker compose up --build
 ```
 
 - Site : <https://localhost> (certificat local Caddy — accepter l'avertissement)
+- Sous Windows, les ports 80/443 sont souvent réservés (`winnat`, IIS) et Docker répond
+  « bind: an attempt was made to access a socket… ». Deux solutions : libérer le port
+  (`net stop winnat` puis `net start winnat` après le démarrage) ou, dans `.env`, poser
+  `HTTP_PORT=8088`, `HTTPS_PORT=8443`, `PUBLIC_BASE_URL=https://localhost:8443` et
+  `ALLOWED_HOSTS=localhost,localhost:8443,web` → le site répond alors sur <https://localhost:8443>.
 - Page de démo : <https://localhost/malick> · back-office : <https://localhost/login>
   (`malick@demo.linkme.sn` / `demo-malick-2026`, modifiable par `DEMO_PASSWORD`)
 
