@@ -69,15 +69,18 @@ public class PaymentService {
         PaymentProvider provider = registry.forWebhook(providerId);
         WebhookNotification n = provider.parseWebhook(req);
         Map<String, Object> payload = safePayload(req);
-        String eventId = n.eventId() != null && !n.eventId().isBlank() ? n.eventId() : "sha256:" + Hashing.sha256Hex(new String(req.body(), StandardCharsets.UTF_8));
+        String bodyHash = Hashing.sha256Hex(new String(req.body(), StandardCharsets.UTF_8));
+        String eventId = n.eventId() != null && !n.eventId().isBlank() ? n.eventId() : "sha256:" + bodyHash;
 
-        if (events.existsByProviderAndEventId(providerId, eventId)) return Outcome.DUPLICATE;
-
+        // La signature est vérifiée AVANT toute utilisation de l'identifiant d'événement : sinon une notification
+        // forgée pourrait « réserver » l'event_id de la vraie notification et la faire passer pour un doublon.
         if (!n.signatureValid()) {
-            recorder.recordRejected(providerId, eventId, n.reference(), n.type(), payload, false, "INVALID_SIGNATURE");
+            recorder.recordRejected(providerId, "rejected:" + bodyHash, n.reference(), n.type(), payload, false, "INVALID_SIGNATURE");
             log.warn("Webhook {} rejeté : signature invalide (ref={})", providerId, n.reference());
             throw ApiException.unauthorized("INVALID_SIGNATURE", "Signature invalide.");
         }
+
+        if (events.existsByProviderAndEventId(providerId, eventId)) return Outcome.DUPLICATE;
         Optional<ShopOrder> maybe = n.reference() == null ? Optional.empty() : orders.lockByReference(n.reference());
         if (maybe.isEmpty() || !maybe.get().getProvider().equals(providerId)) {
             recorder.recordRejected(providerId, eventId, n.reference(), n.type(), payload, true, "UNKNOWN_ORDER");

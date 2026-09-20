@@ -69,7 +69,8 @@ public class ContactController {
         if (!hasEmail && !hasPhone) throw ApiException.validation("email", "Indique un email ou un numéro de téléphone.");
         ContactMessage m = messages.save(new ContactMessage(p.getUserId(), in.name().trim(), hasEmail ? in.email().trim() : null,
                 hasPhone ? in.phone().trim() : null, in.message().trim(), clock.instant()));
-        users.findById(p.getUserId()).ifPresent(u -> mail.send(u.getEmail(), "Nouveau message de " + m.getName(),
+        String safeName = m.getName().replaceAll("[\\r\\n]", " ");
+        users.findById(p.getUserId()).ifPresent(u -> mail.send(u.getEmail(), "Nouveau message de " + safeName,
                 "Tu as reçu un message via ta page :\n\n" + m.getMessage() + "\n\n— " + m.getName()
                         + (m.getEmail() != null ? "\nEmail : " + m.getEmail() : "") + (m.getPhone() != null ? "\nTéléphone : " + m.getPhone() : "")));
     }

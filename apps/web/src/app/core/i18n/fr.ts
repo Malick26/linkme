@@ -330,6 +330,11 @@ export const fr = {
   'sales.status.CANCELED': 'Annulée',
   'sales.attention': 'À vérifier',
   'sales.buyer': 'Acheteur',
+  'sales.col.ref': 'Réf.',
+  'sales.col.product': 'Produit',
+  'sales.col.amount': 'Montant',
+  'sales.col.net': 'Net',
+  'sales.col.status': 'Statut',
 
   // Messages / stats / réglages
   'messages.title': 'Messages reçus',

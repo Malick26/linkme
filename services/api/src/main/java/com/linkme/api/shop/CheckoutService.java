@@ -43,7 +43,9 @@ public class CheckoutService {
     @Transactional
     public CheckoutResponse checkout(String handle, CheckoutRequest req) {
         CreatorProfile creator = assembler.findPublished(Handles.normalize(handle)).orElseThrow(ApiException::notFound);
-        String idem = req.idempotencyKey() == null || req.idempotencyKey().isBlank() ? null : req.idempotencyKey().trim();
+        // la clé du client est liée au numéro de l'acheteur : un tiers ne peut pas « rejouer » la clé de quelqu'un d'autre
+        String idem = req.idempotencyKey() == null || req.idempotencyKey().isBlank() ? null
+                : Hashing.sha256Hex(req.idempotencyKey().trim() + "|" + req.buyerPhone().replace(" ", "")).substring(0, 64);
         if (idem != null) {
             Optional<ShopOrder> existing = orders.findByCreatorIdAndIdempotencyKey(creator.getUserId(), idem);
             if (existing.isPresent()) {

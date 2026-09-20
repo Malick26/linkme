@@ -93,7 +93,9 @@ public class PayDunyaProvider implements PaymentProvider {
             case "failed" -> PaymentStatus.FAILED;
             default -> PaymentStatus.PENDING;
         };
-        return new VerifiedPayment(status, parseLong(res.path("invoice").path("total_amount").asText(null)), "XOF");
+        // PayDunya ne renvoie pas toujours la devise : sur ce compte elle est fixée à XOF (FCFA) côté fournisseur
+        String currency = res.path("invoice").path("currency").asText(null);
+        return new VerifiedPayment(status, parseLong(res.path("invoice").path("total_amount").asText(null)), currency == null || currency.isBlank() ? "XOF" : currency);
     }
 
     static Long parseLong(String s) {

@@ -126,6 +126,8 @@ public class AuthService {
                 .filter(x -> x.usable(now))
                 .orElseThrow(() -> ApiException.badRequest("TOKEN_INVALID", "Ce lien a expiré ou a déjà été utilisé."));
         t.use(now);
+        // tous les autres jetons du compte deviennent inutilisables
+        resetTokens.markAllUsed(t.getUserId(), now);
         users.findById(t.getUserId()).orElseThrow(ApiException::notFound).changePassword(encoder.encode(newPassword), now);
     }
 

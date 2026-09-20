@@ -27,7 +27,11 @@ public class RateLimitInterceptor implements HandlerInterceptor {
                 new Rule("auth", "POST", "^/api/auth/(login|register|forgot|reset)$", l.authPerMinute(), 60_000),
                 new Rule("contact", "POST", "^/api/public/[^/]+/contact$", l.contactPer10Minutes(), 600_000),
                 new Rule("checkout", "POST", "^/api/public/[^/]+/checkout$", l.checkoutPerMinute(), 60_000),
-                new Rule("events", "POST", "^/api/public/[^/]+/events$", l.eventsPerMinute(), 60_000));
+                new Rule("events", "POST", "^/api/public/[^/]+/events$", l.eventsPerMinute(), 60_000),
+                // notifications fournisseurs : non authentifiées et append-only → plafond par IP (les rejeux légitimes
+                // des fournisseurs restent très en deçà)
+                new Rule("webhooks", "POST", "^/api/webhooks/[^/]+$", l.webhooksPerMinute(), 60_000),
+                new Rule("uploads", "POST", "^/api/me/uploads/(local|complete|sign)$", l.uploadsPerMinute(), 60_000));
     }
 
     @Override

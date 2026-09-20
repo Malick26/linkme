@@ -10,6 +10,7 @@
     "serve:ssr": "node dist/web/server/server.mjs",
     "gen:api": "node scripts/gen-api.mjs",
     "check:tokens": "node scripts/check-tokens.mjs",
+    "check:bundle": "node scripts/check-bundle.mjs",
     "lint": "npm run check:tokens && tsc -p tsconfig.app.json --noEmit",
     "e2e": "playwright test",
     "e2e:update-snapshots": "playwright test --update-snapshots",

@@ -112,6 +112,17 @@ class CheckoutAndWebhookIT extends AbstractIT {
     }
 
     @Test
+    void notificationForgeeNeBloquePasLaVraie() throws Exception {
+        // une notification non signée ne doit pas pouvoir « réserver » l'identifiant d'événement de la vraie (D32)
+        String ref = checkout(1, null).get("reference").asText();
+        WebhookRequest real = mock.settle(ref, PaymentStatus.PAID);
+        WebhookRequest forged = new WebhookRequest(real.body(), real.contentType(), Map.of(MockPaymentProvider.SIGNATURE_HEADER, "ff".repeat(32)), Map.of());
+        deliver(forged).andExpect(status().isUnauthorized());
+        deliver(real).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PROCESSED"));
+        assertThat(order(ref).getStatus()).isEqualTo(OrderStatus.PAID);
+    }
+
+    @Test
     void montantAltereRefuse() throws Exception {
         String ref = checkout(1, null).get("reference").asText();
         // 1) le fournisseur a encaissé moins que le prix (session de paiement altérée)

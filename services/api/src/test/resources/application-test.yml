@@ -13,6 +13,8 @@ app:
     contact-per-10-minutes: 1000
     checkout-per-minute: 1000
     events-per-minute: 1000
+    webhooks-per-minute: 1000
+    uploads-per-minute: 1000
 server:
   servlet:
     session:

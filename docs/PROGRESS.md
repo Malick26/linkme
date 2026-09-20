@@ -56,3 +56,79 @@ Captures : `docs/design/screens/` (390, 430, 768, 1280, 1440, bloc, boutique) ·
 de bande passante en 4G lente) → désactivé (`PRELOAD_DISPLAY_FONT = false`, D27). L'image de fond LCP reste préchargée.
 
 **Gate 1** : checklist 5.6 ✅ (écart documenté) · captures 768/1280/1440 cohérentes ✅ · Lighthouse ≥ 90 ✅.
+
+---
+
+## Phase 2 — Back-end cœur + éditeur + thème
+
+| Élément | État | Preuve |
+|---|---|---|
+| Auth : inscription, connexion, déconnexion, mot de passe oublié/réinitialisé, disponibilité du handle | ⚠️/✅ | back écrit + `AuthIT` (non exécutable ici) ; parcours vert contre le mock contractuel |
+| Profil, blocs (CRUD + réordonnancement), uploads (Cloudinary signé ou local) | ⚠️/✅ | idem |
+| Thème brouillon / publié, presets (5), réinitialisation, publication | ⚠️/✅ | idem |
+| Éditeur : shell responsive, tableau de bord, profil, blocs en **glisser-déposer** (CDK), éditeur de thème avec **aperçu live**, onboarding 5 étapes, réglages | ✅ | captures `docs/design/screens/editor-*.png` (390/768/1280) |
+| Aperçu = **même composant** que la page publique (`PublicPageView [embedded]`), paliers en container queries (D29) | ✅ | capture 390 de l'aperçu + règle 4 de CLAUDE.md |
+| Undo/redo + enregistrement automatique du brouillon de thème | ✅ | e2e « parcours créateur complet » |
+| Garde-fou de contraste (WCAG AA) + correction en un clic | ✅ | tests unitaires + e2e dédié |
+| Page publique branchée sur l'API réelle (fixtures seulement si `USE_FIXTURES=true`) | ✅ | e2e fullstack contre le mock contractuel |
+| **Mock d'API contractuel** (`apps/web/scripts/mock-api.mjs`, in-memory, sessions + CSRF + webhooks signés) | ✅ | permet d'exécuter les parcours bout-en-bout sans JVM |
+
+**Gate 2** : e2e « inscription → onboarding → changement de thème → publication → page publique à jour » ✅ **vert**
+(`npm run e2e:fullstack` → 4/4, dont le garde-fou de contraste et les onglets Édition/Aperçu en mobile).
+Réserve : exécuté contre le **mock contractuel**, pas contre la JVM (Maven bloqué, D26) ; les mêmes parcours sont
+couverts côté back par les tests d'intégration Testcontainers, à lancer chez vous par `./mvnw verify`.
+
+---
+
+## Phase 3 — Boutique & paiements
+
+| Élément | État | Preuve |
+|---|---|---|
+| Produits (CRUD, images, stock, visibilité), boutique publique, fiche produit | ✅ | e2e `achat complet`, captures `shop-390.png` |
+| Checkout : commande `PENDING`, commission figée, idempotence par clé + téléphone (D36) | ⚠️/✅ | `CheckoutService` + `CheckoutAndWebhookIT` ; parcours vert contre le mock |
+| Webhooks : **signature vérifiée d'abord** (D32), idempotence `(provider, event_id)`, **re-vérification serveur-à-serveur** du statut, contrôle montant/devise avant `PAID` (D24) | ⚠️ | `PaymentService` + 3 tests d'intégration (rejeu, signature invalide, montant altéré, notification forgée) |
+| Grand livre append-only (`payment_event`, `ledger_entry`) | ✅ | déclencheurs PostgreSQL vérifiés sur une base locale : `ERROR: table payment_event is append-only` |
+| Adaptateurs : Mock complet, PayDunya et CinetPay écrits d'après leur documentation publique, **inactifs sans clés** | ⚠️ | `payments/*Provider.java` ; sans clés le checkout répond `PAYMENT_UNAVAILABLE` |
+| Emails (vente, reçu acheteur, réinitialisation), jamais journalisés hors `dev` (D34) | ⚠️ | `MailService` |
+| Tableau de ventes (filtres, totaux, export CSV) + reversements `PENDING_PAYOUT` (D25) | ✅ | `editor-sales-1280.png` |
+| Revue sécurité (sous-agent `security-reviewer`) | ✅ | 0 bloquant ; 5 majeurs corrigés (D32–D34, D36), 1 risque accepté et documenté (D37) |
+
+**Gate 3** : e2e « achat complet » avec le Mock ✅ · tests de webhooks écrits (rejeu / signature invalide / montant
+altéré / notification forgée) ⚠️ *non exécutés ici* (Testcontainers exige Docker) · revue sécurité **sans point
+bloquant** ✅.
+
+---
+
+## Phase 4 — Finitions, P1, production
+
+| Élément | État | Preuve |
+|---|---|---|
+| Bloc contact + boîte « Messages » (anti-spam, nettoyage CR/LF) | ✅ | `editor-*`, e2e |
+| Analytics sans cookie (`sendBeacon`, IP hachée + sel journalier, D22) + écran « Trafic » 7/30 j | ✅ | `editor-analytics-1280.png` |
+| OG dynamique (titre, description, image) et `canonical` rendus au SSR | ✅ | e2e SSR/OG |
+| i18n complet FR/EN (dictionnaires typés, EN chargé à la demande) | ✅ | `npm run lint` (clé manquante = erreur de compilation) |
+| Mentions légales, confidentialité, CGV (`/legal/*`) | ✅ | routes `legal.routes.ts` |
+| Durcissement : CSP (D28), en-têtes de sécurité, limitation de débit étendue aux webhooks et uploads (D33), `.env.example` sûr par défaut (D35) | ✅ | `SecurityConfig`, `RateLimitInterceptor`, `infra/.env.example` |
+| `README.md` (installation, variables, commandes, Hetzner, sauvegarde/restauration, branchement PayDunya/CinetPay) | ✅ | `README.md` |
+| `docs/API.md` généré depuis le contrat (51 opérations) | ✅ | `infra/scripts/gen_api_doc.py` |
+| Scripts `infra/scripts/deploy.sh` et `backup.sh` | ✅ écrits | `bash -n` OK ; à exécuter sur le VPS |
+| Rapport final | ✅ | `docs/FINAL-REPORT.md` |
+
+### Vérifications exécutées le 20/09/2026 (dernier passage)
+
+| Commande | Résultat |
+|---|---|
+| `npm run check:tokens` | ✅ 107 fichiers, 0 couleur codée en dur |
+| `npm run lint` (typecheck strict) | ✅ 0 erreur |
+| `npm test` (Vitest) | ✅ **61/61** |
+| `npm run build` (SSR + prerender) | ✅ 438 Ko bruts / **136,5 Ko gzip** initial (budget 150) |
+| `npm run e2e` (visuel + axe + comportements) | ✅ **13/13** |
+| `npm run e2e:fullstack` (contre le mock contractuel) | ✅ **4/4** |
+| Compilation du back (javac contre stubs, D26) | ✅ 0 erreur / 0 avertissement |
+| Harnais logique back (commission, signatures, idempotence, contraste…) | ✅ **46/46** |
+| Migrations Flyway sur PostgreSQL 16 local + déclencheurs append-only | ✅ |
+| Lighthouse mobile `/malick` | ✅ Perf 92 · A11y 100 · BP 100 · SEO 100 |
+
+**Gate 4** : Definition of Done (section 12) — tout est ✅ **sauf** les deux points qui exigent Docker/Maven :
+`docker compose up` et `./mvnw verify` (couverture ≥ 80 %). Ils sont écrits, câblés dans la CI GitHub Actions, et
+doivent être exécutés sur votre machine ou en CI (voir `docs/FINAL-REPORT.md`, § « À exécuter chez vous »).

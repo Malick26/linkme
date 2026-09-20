@@ -30,7 +30,7 @@ import { TPipe } from '../../core/i18n/i18n.service';
           } @else {
             <div class="tbl" role="region" tabindex="0" [attr.aria-label]="'sales.orders' | t">
               <table>
-                <thead><tr><th scope="col">Réf.</th><th scope="col">Produit</th><th scope="col">{{ 'sales.buyer' | t }}</th><th scope="col">Montant</th><th scope="col">Net</th><th scope="col">Statut</th></tr></thead>
+                <thead><tr><th scope="col">{{ 'sales.col.ref' | t }}</th><th scope="col">{{ 'sales.col.product' | t }}</th><th scope="col">{{ 'sales.buyer' | t }}</th><th scope="col">{{ 'sales.col.amount' | t }}</th><th scope="col">{{ 'sales.col.net' | t }}</th><th scope="col">{{ 'sales.col.status' | t }}</th></tr></thead>
                 <tbody>
                   @for (o of items; track o.id) {
                     <tr>

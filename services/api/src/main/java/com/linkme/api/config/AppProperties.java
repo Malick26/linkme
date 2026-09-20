@@ -43,7 +43,8 @@ public record AppProperties(
         }
     }
 
-    public record RateLimits(int authPerMinute, int contactPer10Minutes, int checkoutPerMinute, int eventsPerMinute) {}
+    public record RateLimits(int authPerMinute, int contactPer10Minutes, int checkoutPerMinute, int eventsPerMinute,
+                             int webhooksPerMinute, int uploadsPerMinute) {}
 
     static boolean notBlank(String s) {
         return s != null && !s.isBlank();

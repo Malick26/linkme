@@ -114,3 +114,5 @@ app:
     contact-per-10-minutes: 5
     checkout-per-minute: 10
     events-per-minute: 120
+    webhooks-per-minute: 60
+    uploads-per-minute: 30
