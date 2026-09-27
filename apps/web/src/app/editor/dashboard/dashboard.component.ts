@@ -17,15 +17,17 @@ import { EditorStore } from '../state/editor.store';
   template: `
     <div class="ed-page ed-stack">
       <h1>{{ 'dash.hello' | t: { name: auth.me()?.displayName ?? '' } }}</h1>
-      <section class="ed-card st" [class.st--live]="auth.me()?.published">
+      <section class="ed-card st" [class.st--live]="isLive()">
         <div>
-          <p class="st__title">{{ (auth.me()?.published ? 'dash.pageLive' : 'dash.pageDraft') | t }}</p>
+          <p class="st__title">{{ (isLive() ? 'dash.pageLive' : !subscriptionActive() ? 'dash.needsSubscription' : 'dash.pageDraft') | t }}</p>
           <p class="ed-muted st__url">{{ url() }}</p>
         </div>
         <div class="ed-row">
-          @if (auth.me()?.published) {
+          @if (isLive()) {
             <a class="ed-btn ed-btn--primary" [href]="'/' + auth.me()?.handle" target="_blank" rel="noopener"><lm-icon name="external-link" [size]="18" />{{ 'dash.open' | t }}</a>
             <button type="button" class="ed-btn" (click)="copy()"><lm-icon [name]="copied() ? 'check' : 'copy'" [size]="18" />{{ (copied() ? 'common.copied' : 'ed.copyLink') | t }}</button>
+          } @else if (!subscriptionActive()) {
+            <a class="ed-btn ed-btn--primary" routerLink="/app/abonnement"><lm-icon name="crown" [size]="18" />{{ 'subscription.bannerCta' | t }}</a>
           } @else {
             <a class="ed-btn ed-btn--primary" routerLink="/app/design">{{ 'ed.publish' | t }}</a>
           }
@@ -80,9 +82,12 @@ export class DashboardComponent {
   protected readonly fmt = formatXof;
   protected readonly earnings = rxResource({ stream: () => this.api.earnings() });
   protected readonly url = computed(() => `${typeof location !== 'undefined' ? location.origin : ''}/${this.auth.me()?.handle ?? ''}`);
+  protected readonly subscriptionActive = computed(() => this.auth.me()?.subscriptionStatus === 'active');
+  protected readonly isLive = computed(() => !!this.auth.me()?.published && this.subscriptionActive());
   protected readonly checklist = computed(() => {
     const p = this.store.profile();
     const items: Array<{ key: I18nKey; done: boolean; link: string }> = [
+      { key: 'dash.check.subscription', done: this.subscriptionActive(), link: '/app/abonnement' },
       { key: 'dash.check.background', done: !!p?.backgroundImageId || !!this.store.theme().background.imageId, link: '/app/profile' },
       { key: 'dash.check.socials', done: this.store.socials().length > 0, link: '/app/profile' },
       { key: 'dash.check.stats', done: !!this.store.stats()?.updatedAt, link: '/app/profile' },

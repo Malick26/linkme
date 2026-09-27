@@ -104,7 +104,8 @@ public class AuthService {
     public Me me(UUID userId) {
         User u = users.findById(userId).filter(x -> x.getDeletedAt() == null).orElseThrow(() -> ApiException.unauthorized("UNAUTHORIZED", "Session expirée."));
         CreatorProfile p = profiles.findById(userId).orElseThrow(ApiException::notFound);
-        return new Me(u.getId(), u.getEmail(), p.getHandle(), p.getDisplayName(), p.getPlan(), p.isPublished(), p.isOnboardingCompleted());
+        return new Me(u.getId(), u.getEmail(), p.getHandle(), p.getDisplayName(), p.getPlan(), p.isPublished(), p.isOnboardingCompleted(),
+                p.getSubscriptionStatus(), p.getSubscriptionExpiresAt());
     }
 
     /** Réponse identique que le compte existe ou non (pas d'énumération d'emails). */

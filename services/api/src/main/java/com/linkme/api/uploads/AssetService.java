@@ -39,6 +39,24 @@ public class AssetService {
         };
     }
 
+    /** Son uploadé (item de bloc « sons », D50) : URL directe, pas de transformation nécessaire. */
+    public AudioDto toAudio(Asset a) {
+        String url = switch (a.getProvider()) {
+            case "cloudinary" -> cloudinary.audioUrl(a.getPublicId());
+            default -> "/media/" + a.getPublicId();
+        };
+        return new AudioDto(a.getId().toString(), url, a.getFormat(), a.getBytes());
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, AudioDto> audios(Collection<UUID> ids) {
+        List<UUID> clean = ids.stream().filter(Objects::nonNull).distinct().toList();
+        Map<String, AudioDto> out = new LinkedHashMap<>();
+        if (clean.isEmpty()) return out;
+        for (Asset a : assets.findByIdIn(clean)) out.put(a.getId().toString(), toAudio(a));
+        return out;
+    }
+
     /** URL absolue ou relative d'une image 1200×630 pour l'aperçu de partage (brief §7.5). */
     public String ogImage(Asset a) {
         return switch (a.getProvider()) {
@@ -64,15 +82,21 @@ public class AssetService {
     /** Valide qu'un identifiant d'image existe et appartient au créateur ; renvoie l'UUID (ou null si vide). */
     @Transactional(readOnly = true)
     public UUID requireOwned(UUID ownerId, String field, String imageId) {
-        if (imageId == null || imageId.isBlank()) return null;
+        return requireOwned(ownerId, field, imageId, "Image inconnue.");
+    }
+
+    /** Variante avec message dédié (ex. « Son inconnu. » pour {@code soundId}, D50). */
+    @Transactional(readOnly = true)
+    public UUID requireOwned(UUID ownerId, String field, String assetId, String notFoundMessage) {
+        if (assetId == null || assetId.isBlank()) return null;
         UUID id;
         try {
-            id = UUID.fromString(imageId);
+            id = UUID.fromString(assetId);
         } catch (IllegalArgumentException e) {
-            throw ApiException.validation(field, "Image inconnue.");
+            throw ApiException.validation(field, notFoundMessage);
         }
-        Asset a = assets.findById(id).orElseThrow(() -> ApiException.validation(field, "Image inconnue."));
-        if (!ownerId.equals(a.getOwnerId())) throw ApiException.validation(field, "Image inconnue.");
+        Asset a = assets.findById(id).orElseThrow(() -> ApiException.validation(field, notFoundMessage));
+        if (!ownerId.equals(a.getOwnerId())) throw ApiException.validation(field, notFoundMessage);
         return id;
     }
 

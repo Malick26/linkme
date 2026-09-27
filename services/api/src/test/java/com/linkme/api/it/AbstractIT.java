@@ -64,4 +64,18 @@ public abstract class AbstractIT {
     protected static String uniqueHandle(String prefix) {
         return (prefix + UUID.randomUUID().toString().replace("-", "")).substring(0, 20);
     }
+
+    /**
+     * Active un abonnement (D44) via le parcours mock complet (checkout + webhook simulé « succès »).
+     * Pour les tests qui exigent une page publique visible mais n'exercent pas eux-mêmes le parcours d'abonnement.
+     */
+    protected String activateSubscription(MockHttpSession s, String plan) throws Exception {
+        JsonNode checkout = body(mvc.perform(post("/api/me/subscription/checkout").session(s).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON).content(json(Map.of("plan", plan, "phone", "+221770000001"))))
+                .andExpect(status().isOk()).andReturn());
+        String reference = checkout.get("reference").asText();
+        mvc.perform(post("/api/payments/mock/subscription/" + reference + "/complete").param("outcome", "success"))
+                .andExpect(status().isSeeOther());
+        return reference;
+    }
 }

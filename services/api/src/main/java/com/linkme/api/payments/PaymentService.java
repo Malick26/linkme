@@ -13,6 +13,10 @@ import com.linkme.api.shop.OrderStatus;
 import com.linkme.api.shop.Product;
 import com.linkme.api.shop.ProductRepository;
 import com.linkme.api.shop.ShopOrder;
+import com.linkme.api.subscription.SubscriptionPayment;
+import com.linkme.api.subscription.SubscriptionPaymentRepository;
+import com.linkme.api.subscription.SubscriptionPaymentStatus;
+import com.linkme.api.subscription.SubscriptionService;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
@@ -22,14 +26,14 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Traitement des notifications de paiement (ADR 0005, D24) :
- * signature → idempotence → re-vérification serveur-à-serveur → contrôle montant/devise → transition d'état →
- * stock → grand livre → emails (après commit). Chaque notification est journalisée (append-only).
+ * Traitement des notifications de paiement (ADR 0005, D24, D47) :
+ * signature → idempotence → dispatch (vente boutique / paiement d'abonnement, par préfixe de référence) →
+ * re-vérification serveur-à-serveur → contrôle montant/devise → transition d'état → effet métier → grand livre
+ * (append-only). Chaque notification est journalisée.
  */
 @Service
 public class PaymentService {
@@ -44,18 +48,23 @@ public class PaymentService {
     private final OrderRepository orders;
     private final ProductRepository products;
     private final LedgerEntryRepository ledger;
+    private final SubscriptionPaymentRepository subscriptionPayments;
+    private final SubscriptionService subscriptions;
     private final ApplicationEventPublisher publisher;
     private final ObjectMapper mapper;
     private final Clock clock;
 
     public PaymentService(PaymentProviderRegistry registry, PaymentEventRepository events, PaymentEventRecorder recorder, OrderRepository orders,
-                          ProductRepository products, LedgerEntryRepository ledger, ApplicationEventPublisher publisher, ObjectMapper mapper, Clock clock) {
+                          ProductRepository products, LedgerEntryRepository ledger, SubscriptionPaymentRepository subscriptionPayments,
+                          SubscriptionService subscriptions, ApplicationEventPublisher publisher, ObjectMapper mapper, Clock clock) {
         this.registry = registry;
         this.events = events;
         this.recorder = recorder;
         this.orders = orders;
         this.products = products;
         this.ledger = ledger;
+        this.subscriptionPayments = subscriptionPayments;
+        this.subscriptions = subscriptions;
         this.publisher = publisher;
         this.mapper = mapper;
         this.clock = clock;
@@ -81,6 +90,14 @@ public class PaymentService {
         }
 
         if (events.existsByProviderAndEventId(providerId, eventId)) return Outcome.DUPLICATE;
+
+        // Deux natures d'argent, un seul webhook (D47) : le préfixe de référence dit quelle table interroger.
+        boolean isSubscription = n.reference() != null && n.reference().startsWith("SB-");
+        return isSubscription ? handleSubscriptionPayment(providerId, provider, n, payload, eventId)
+                : handleOrderPayment(providerId, provider, n, payload, eventId);
+    }
+
+    private Outcome handleOrderPayment(String providerId, PaymentProvider provider, WebhookNotification n, Map<String, Object> payload, String eventId) {
         Optional<ShopOrder> maybe = n.reference() == null ? Optional.empty() : orders.lockByReference(n.reference());
         if (maybe.isEmpty() || !maybe.get().getProvider().equals(providerId)) {
             recorder.recordRejected(providerId, eventId, n.reference(), n.type(), payload, true, "UNKNOWN_ORDER");
@@ -96,16 +113,14 @@ public class PaymentService {
 
         VerifiedPayment v = provider.verify(order);
         if (v.status() == PaymentStatus.PAID) {
-            boolean amountOk = v.amount() != null && v.amount() == order.getAmountXof() && "XOF".equalsIgnoreCase(v.currency())
-                    && (n.claimedAmount() == null || n.claimedAmount() == order.getAmountXof());
-            if (!amountOk) {
-                // on ne lève pas d'exception : le signalement de la commande et la trace doivent être commités
+            if (!amountMatches(v, n, order.getAmountXof())) {
                 order.flag(now);
                 events.save(new PaymentEvent(providerId, eventId, order.getReference(), n.type(), payload, true, "AMOUNT_MISMATCH", now));
-                log.error("Paiement {} : montant incohérent (attendu {}, vérifié {}, annoncé {})", order.getReference(), order.getAmountXof(), v.amount(), n.claimedAmount());
+                log.error("Paiement {} : montant incohérent (attendu {}, vérifié {}, annoncé {})", order.getReference(), order.getAmountXof(),
+                        v.amount(), n.claimedAmount());
                 return Outcome.AMOUNT_MISMATCH;
             }
-            markPaid(order, now);
+            markOrderPaid(order, now);
             events.save(new PaymentEvent(providerId, eventId, order.getReference(), n.type(), payload, true, "PAID", now));
             publisher.publishEvent(new OrderPaid(order.getReference()));
             return Outcome.PROCESSED;
@@ -119,7 +134,49 @@ public class PaymentService {
         return Outcome.PENDING;
     }
 
-    private void markPaid(ShopOrder order, Instant now) {
+    private Outcome handleSubscriptionPayment(String providerId, PaymentProvider provider, WebhookNotification n, Map<String, Object> payload, String eventId) {
+        Optional<SubscriptionPayment> maybe = n.reference() == null ? Optional.empty() : subscriptionPayments.lockByReference(n.reference());
+        if (maybe.isEmpty() || !maybe.get().getProvider().equals(providerId)) {
+            recorder.recordRejected(providerId, eventId, n.reference(), n.type(), payload, true, "UNKNOWN_ORDER");
+            throw ApiException.badRequest("UNKNOWN_ORDER", "Paiement inconnu.");
+        }
+        SubscriptionPayment payment = maybe.get();
+        Instant now = clock.instant();
+
+        if (payment.getStatus().isFinal()) {
+            events.save(new PaymentEvent(providerId, eventId, payment.getReference(), n.type(), payload, true, "ALREADY_FINAL", now));
+            return Outcome.ALREADY_FINAL;
+        }
+
+        VerifiedPayment v = provider.verify(payment);
+        if (v.status() == PaymentStatus.PAID) {
+            if (!amountMatches(v, n, payment.getAmountXof())) {
+                payment.flag(now);
+                events.save(new PaymentEvent(providerId, eventId, payment.getReference(), n.type(), payload, true, "AMOUNT_MISMATCH", now));
+                log.error("Paiement d'abonnement {} : montant incohérent (attendu {}, vérifié {}, annoncé {})", payment.getReference(),
+                        payment.getAmountXof(), v.amount(), n.claimedAmount());
+                return Outcome.AMOUNT_MISMATCH;
+            }
+            payment.transition(SubscriptionPaymentStatus.PAID, now);
+            subscriptions.activate(payment, now);
+            events.save(new PaymentEvent(providerId, eventId, payment.getReference(), n.type(), payload, true, "PAID", now));
+            return Outcome.PROCESSED;
+        }
+        if (v.status() == PaymentStatus.FAILED || v.status() == PaymentStatus.CANCELED) {
+            payment.transition(v.status() == PaymentStatus.FAILED ? SubscriptionPaymentStatus.FAILED : SubscriptionPaymentStatus.CANCELED, now);
+            events.save(new PaymentEvent(providerId, eventId, payment.getReference(), n.type(), payload, true, v.status().name(), now));
+            return Outcome.PROCESSED;
+        }
+        events.save(new PaymentEvent(providerId, eventId, payment.getReference(), n.type(), payload, true, "PENDING", now));
+        return Outcome.PENDING;
+    }
+
+    private static boolean amountMatches(VerifiedPayment v, WebhookNotification n, long expected) {
+        return v.amount() != null && v.amount() == expected && "XOF".equalsIgnoreCase(v.currency())
+                && (n.claimedAmount() == null || n.claimedAmount() == expected);
+    }
+
+    private void markOrderPaid(ShopOrder order, Instant now) {
         if (!order.transition(OrderStatus.PAID, now)) return;
         Product p = products.lockById(order.getProductId()).orElse(null);
         if (p == null || !p.decrementStock(order.getQuantity(), now)) {

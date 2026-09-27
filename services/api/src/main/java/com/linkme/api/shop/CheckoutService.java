@@ -43,6 +43,8 @@ public class CheckoutService {
     @Transactional
     public CheckoutResponse checkout(String handle, CheckoutRequest req) {
         CreatorProfile creator = assembler.findPublished(Handles.normalize(handle)).orElseThrow(ApiException::notFound);
+        // La boutique est réservée au plan Boutique (D45) : même défense en profondeur que côté lecture publique.
+        if (!creator.isBoutique()) throw ApiException.notFound();
         // la clé du client est liée au numéro de l'acheteur : un tiers ne peut pas « rejouer » la clé de quelqu'un d'autre
         String idem = req.idempotencyKey() == null || req.idempotencyKey().isBlank() ? null
                 : Hashing.sha256Hex(req.idempotencyKey().trim() + "|" + req.buyerPhone().replace(" ", "")).substring(0, 64);

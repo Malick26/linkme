@@ -104,6 +104,7 @@ public class ShopControllers {
     @GetMapping("/api/public/{handle}/products/{productId}")
     public ResponseEntity<PublicProductDto> publicProduct(@PathVariable String handle, @PathVariable UUID productId) {
         CreatorProfile p = assembler.findPublished(Handles.normalize(handle)).orElseThrow(ApiException::notFound);
+        if (!p.isBoutique()) throw ApiException.notFound(); // D45 : boutique réservée au plan Boutique
         return ResponseEntity.ok().cacheControl(CacheControl.noCache()).body(products.publicGet(p.getUserId(), productId));
     }
 

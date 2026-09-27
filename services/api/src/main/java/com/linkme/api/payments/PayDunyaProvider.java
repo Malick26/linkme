@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.linkme.api.common.ApiException;
 import com.linkme.api.common.Hashing;
 import com.linkme.api.config.AppProperties;
-import com.linkme.api.shop.ShopOrder;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,11 +47,11 @@ public class PayDunyaProvider implements PaymentProvider {
     }
 
     @Override
-    public PaymentInit initiate(ShopOrder order, PaymentUrls urls) {
+    public PaymentInit initiate(Payable payable, PaymentUrls urls) {
         Map<String, Object> body = Map.of(
-                "invoice", Map.of("total_amount", order.getAmountXof(), "description", order.getProductTitle() + " × " + order.getQuantity()),
+                "invoice", Map.of("total_amount", payable.getAmountXof(), "description", payable.checkoutDescription()),
                 "store", Map.of("name", "LinkMe"),
-                "custom_data", Map.of("reference", order.getReference()),
+                "custom_data", Map.of("reference", payable.getReference()),
                 "actions", Map.of("cancel_url", urls.cancelUrl(), "return_url", urls.returnUrl(), "callback_url", urls.notifyUrl()));
         JsonNode res;
         try {
@@ -82,11 +81,11 @@ public class PayDunyaProvider implements PaymentProvider {
     }
 
     @Override
-    public VerifiedPayment verify(ShopOrder order) {
-        JsonNode res = auth(http.get().uri("/checkout-invoice/confirm/{token}", order.getProviderRef())).retrieve().body(JsonNode.class);
+    public VerifiedPayment verify(Payable payable) {
+        JsonNode res = auth(http.get().uri("/checkout-invoice/confirm/{token}", payable.getProviderRef())).retrieve().body(JsonNode.class);
         if (res == null || !"00".equals(res.path("response_code").asText())) return new VerifiedPayment(PaymentStatus.PENDING, null, "XOF");
         String ref = res.path("custom_data").path("reference").asText(null);
-        if (ref != null && !ref.equals(order.getReference())) return new VerifiedPayment(PaymentStatus.PENDING, null, "XOF");
+        if (ref != null && !ref.equals(payable.getReference())) return new VerifiedPayment(PaymentStatus.PENDING, null, "XOF");
         PaymentStatus status = switch (res.path("status").asText("")) {
             case "completed" -> PaymentStatus.PAID;
             case "cancelled" -> PaymentStatus.CANCELED;

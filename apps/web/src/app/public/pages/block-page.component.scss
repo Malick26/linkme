@@ -44,6 +44,41 @@
   height: 152px;
 }
 
+.item__embed--vertical {
+  aspect-ratio: 9 / 16;
+  max-height: 70vh;
+  margin: 0 auto;
+}
+
+.item__audio {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--lm-surface);
+}
+
+.item__audio-cover {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: var(--lm-surface-strong);
+}
+
+.item__audio-cover--placeholder {
+  display: grid;
+  place-items: center;
+  color: var(--lm-text-muted);
+}
+
+.item__audio-player {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+}
+
 .item__body {
   padding: 16px 18px 18px;
 }
@@ -167,6 +202,12 @@
 
 .item__facade--audio {
   aspect-ratio: 5 / 2;
+}
+
+.item__facade--vertical {
+  aspect-ratio: 9 / 16;
+  max-height: 70vh;
+  margin: 0 auto;
 }
 
 .item__play {

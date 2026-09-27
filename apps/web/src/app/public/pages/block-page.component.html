@@ -3,7 +3,7 @@
 } @else if (page.hasValue() && detail.hasValue()) {
   @let p = page.value()!;
   @let d = detail.value()!;
-  <lm-block-shell [page]="p" [heading]="d.block.title" [subheading]="d.block.subtitle">
+  <lm-block-shell [page]="p" [heading]="d.block.title" [subheading]="d.block.subtitle" [backgroundImage]="d.block.backgroundImage ?? null">
     @switch (d.block.type) {
       @case ('shop') {
         @if (d.products.length) {
@@ -38,29 +38,40 @@
           <ul class="items" role="list">
             @for (item of d.items; track item.id) {
               <li lmGlassCard class="item">
-                @if (embedUrl(item); as src) {
+                @if (item.image && !item.sound) {
+                  <img class="item__img" [src]="imageUrl(item.image, 800)" alt="" loading="lazy" width="800" height="450" />
+                }
+                @if (item.sound; as sound) {
+                  <!-- Son uploadé (D50) : lecteur natif, pas d'iframe tiers ni de cookie. -->
+                  <div class="item__audio">
+                    @if (item.image) {
+                      <img class="item__audio-cover" [src]="imageUrl(item.image, 160)" alt="" loading="lazy" width="56" height="56" />
+                    } @else {
+                      <span class="item__audio-cover item__audio-cover--placeholder"><lm-icon name="music" [size]="20" /></span>
+                    }
+                    <audio class="item__audio-player" controls preload="none" [src]="sound.url" [attr.aria-label]="item.title"></audio>
+                  </div>
+                } @else if (embedUrl(item); as src) {
                   @if (playing() === item.id) {
-                    <div class="item__embed" [class.item__embed--audio]="isSpotify(item)">
+                    <div class="item__embed" [class.item__embed--audio]="isAudioEmbed(item)" [class.item__embed--vertical]="isVerticalEmbed(item)">
                       <iframe [src]="src" [title]="item.title" loading="lazy" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
                     </div>
                   } @else {
                     <!-- façade : on ne charge la vidéo qu'au clic (rapidité + aucun cookie tiers avant l'action) -->
-                    <button type="button" class="item__facade" [class.item__facade--audio]="isSpotify(item)" (click)="play(item)" [attr.aria-label]="'public.block.play' | t: { title: item.title }">
+                    <button type="button" class="item__facade" [class.item__facade--audio]="isAudioEmbed(item)" [class.item__facade--vertical]="isVerticalEmbed(item)" (click)="play(item)" [attr.aria-label]="'public.block.play' | t: { title: item.title }">
                       @if (item.image) {
                         <img [src]="imageUrl(item.image, 800)" alt="" loading="lazy" width="800" height="450" />
                       }
-                      <span class="item__play"><lm-icon [name]="isSpotify(item) ? 'music' : 'play'" [size]="26" /></span>
+                      <span class="item__play"><lm-icon [name]="isAudioEmbed(item) ? 'music' : 'play'" [size]="26" /></span>
                     </button>
                   }
-                } @else if (item.image) {
-                  <img class="item__img" [src]="imageUrl(item.image, 800)" alt="" loading="lazy" width="800" height="450" />
                 }
                 <div class="item__body">
                   <h2 class="item__title">{{ item.title }}</h2>
                   @if (item.description) {
                     <p class="item__desc">{{ item.description }}</p>
                   }
-                  @if (item.url) {
+                  @if (item.url && !item.sound) {
                     <a class="item__link" [href]="item.url" target="_blank" rel="noopener noreferrer" (click)="click(item)">
                       {{ linkLabel(item) | t: { provider: providerName(item) } }} <lm-icon name="external-link" [size]="16" />
                     </a>

@@ -4,12 +4,14 @@ import java.net.URI;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** Reconnaît les URL YouTube / Spotify et produit une URL d'intégration sûre (brief §5.5). */
+/** Reconnaît les URL YouTube / Spotify / Deezer / TikTok et produit une URL d'intégration sûre (brief §5.5, D50). */
 public final class EmbedResolver {
     public record Embed(String provider, String src) {}
 
     private static final Pattern YT_ID = Pattern.compile("^[A-Za-z0-9_-]{6,20}$");
     private static final Pattern SPOTIFY = Pattern.compile("^/(?:intl-[a-z]{2}/)?(playlist|track|album|episode|show|artist)/([A-Za-z0-9]{10,40})/?$");
+    private static final Pattern DEEZER = Pattern.compile("^(?:/[a-z]{2})?/(track|album|playlist)/([0-9]{1,20})/?$");
+    private static final Pattern TIKTOK = Pattern.compile("^/@[\\w.-]{1,64}/video/([0-9]{5,25})/?$");
 
     private EmbedResolver() {}
 
@@ -34,6 +36,14 @@ public final class EmbedResolver {
             if (host.equals("open.spotify.com")) {
                 Matcher m = SPOTIFY.matcher(path);
                 if (m.matches()) return new Embed("spotify", "https://open.spotify.com/embed/" + m.group(1) + "/" + m.group(2));
+            }
+            if (host.equals("www.deezer.com") || host.equals("deezer.com")) {
+                Matcher m = DEEZER.matcher(path);
+                if (m.matches()) return new Embed("deezer", "https://widget.deezer.com/widget/dark/" + m.group(1) + "/" + m.group(2));
+            }
+            if (host.equals("www.tiktok.com") || host.equals("tiktok.com")) {
+                Matcher m = TIKTOK.matcher(path);
+                if (m.matches()) return new Embed("tiktok", "https://www.tiktok.com/embed/v2/" + m.group(1));
             }
         } catch (Exception e) {
             return null;

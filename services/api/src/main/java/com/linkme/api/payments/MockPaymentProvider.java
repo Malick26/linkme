@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linkme.api.common.Hashing;
 import com.linkme.api.config.AppProperties;
-import com.linkme.api.shop.ShopOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -43,9 +42,10 @@ public class MockPaymentProvider implements PaymentProvider {
     }
 
     @Override
-    public PaymentInit initiate(ShopOrder order, PaymentUrls urls) {
-        charges.put(order.getReference(), new Charge(order.getAmountXof(), PaymentStatus.PENDING));
-        return new PaymentInit("/api/payments/mock/" + order.getReference(), "MOCK-" + order.getReference());
+    public PaymentInit initiate(Payable payable, PaymentUrls urls) {
+        charges.put(payable.getReference(), new Charge(payable.getAmountXof(), PaymentStatus.PENDING));
+        String path = payable.getReference().startsWith("SB-") ? "/api/payments/mock/subscription/" : "/api/payments/mock/";
+        return new PaymentInit(path + payable.getReference(), "MOCK-" + payable.getReference());
     }
 
     /** Simule l'issue côté fournisseur et renvoie la notification signée qu'il enverrait. */
@@ -92,8 +92,8 @@ public class MockPaymentProvider implements PaymentProvider {
     }
 
     @Override
-    public VerifiedPayment verify(ShopOrder order) {
-        Charge c = charges.get(order.getReference());
+    public VerifiedPayment verify(Payable payable) {
+        Charge c = charges.get(payable.getReference());
         if (c == null) return new VerifiedPayment(PaymentStatus.PENDING, null, "XOF");
         return new VerifiedPayment(c.status(), c.amount(), "XOF");
     }

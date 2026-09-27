@@ -91,6 +91,7 @@ app:
     dir: ${MEDIA_DIR:./data/media}
     local-uploads-enabled: ${LOCAL_UPLOADS_ENABLED:true}
     max-bytes: 8388608
+    max-audio-bytes: 15728640
   cloudinary:
     cloud-name: ${CLOUDINARY_CLOUD_NAME:}
     api-key: ${CLOUDINARY_API_KEY:}
@@ -109,6 +110,10 @@ app:
       api-key: ${CINETPAY_API_KEY:}
       site-id: ${CINETPAY_SITE_ID:}
       secret-key: ${CINETPAY_SECRET_KEY:}
+  subscription:
+    standard-price-xof: ${SUBSCRIPTION_STANDARD_PRICE_XOF:1100}
+    boutique-price-xof: ${SUBSCRIPTION_BOUTIQUE_PRICE_XOF:2700}
+    period-days: ${SUBSCRIPTION_PERIOD_DAYS:30}
   rate-limits:
     auth-per-minute: 10
     contact-per-10-minutes: 5

@@ -39,13 +39,23 @@ public class CreatorProfile {
     private UUID backgroundAssetId;
 
     @Column(nullable = false, length = 8)
-    private String plan = "free";
+    private String plan = "standard";
 
     @Column(nullable = false)
     private boolean published;
 
     @Column(name = "onboarding_completed", nullable = false)
     private boolean onboardingCompleted;
+
+    /** D44 : abonnement obligatoire pour la visibilité publique — la création/l'édition du profil restent libres. */
+    @Column(name = "subscription_status", nullable = false, length = 10)
+    private String subscriptionStatus = "inactive";
+
+    @Column(name = "subscription_expires_at")
+    private Instant subscriptionExpiresAt;
+
+    @Column(name = "subscription_started_at")
+    private Instant subscriptionStartedAt;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
@@ -73,7 +83,35 @@ public class CreatorProfile {
     public String getPlan() { return plan; }
     public boolean isPublished() { return published; }
     public boolean isOnboardingCompleted() { return onboardingCompleted; }
-    public boolean isPro() { return "pro".equals(plan); }
+    public boolean isBoutique() { return "boutique".equals(plan); }
+    public String getSubscriptionStatus() { return subscriptionStatus; }
+    public Instant getSubscriptionExpiresAt() { return subscriptionExpiresAt; }
+    public Instant getSubscriptionStartedAt() { return subscriptionStartedAt; }
+
+    /** Visible publiquement seulement si l'abonnement est actif ET que le créateur veut être publié (D44). */
+    public boolean isVisible() { return published && "active".equals(subscriptionStatus); }
+
+    /**
+     * Un paiement d'abonnement confirmé : le plan choisi devient effectif, l'échéance repart du maximum de
+     * {@code maintenant} et de l'échéance en cours (renouveler avant expiration prolonge, ça ne « perd » rien) + la
+     * durée de la période payée (D46 : pas de prélèvement récurrent, juste une période à renouveler).
+     */
+    public void activateSubscription(String plan, int periodDays, Instant now) {
+        Instant base = subscriptionExpiresAt != null && subscriptionExpiresAt.isAfter(now) ? subscriptionExpiresAt : now;
+        this.plan = plan;
+        this.subscriptionStatus = "active";
+        this.subscriptionExpiresAt = base.plus(java.time.Duration.ofDays(periodDays));
+        if (this.subscriptionStartedAt == null) this.subscriptionStartedAt = now;
+        this.updatedAt = now;
+    }
+
+    /** Bascule quotidienne (tâche planifiée) : passe « active » à « expired » une fois l'échéance dépassée. */
+    public boolean expireIfDue(Instant now) {
+        if (!"active".equals(subscriptionStatus) || subscriptionExpiresAt == null || subscriptionExpiresAt.isAfter(now)) return false;
+        this.subscriptionStatus = "expired";
+        this.updatedAt = now;
+        return true;
+    }
 
     public void update(String displayName, List<String> taglineLines, List<String> categories, String bio, UUID backgroundAssetId, Instant now) {
         this.displayName = displayName;
@@ -107,6 +145,8 @@ public class CreatorProfile {
         this.bio = "";
         this.backgroundAssetId = null;
         this.published = false;
+        this.subscriptionStatus = "inactive";
+        this.subscriptionExpiresAt = null;
         this.updatedAt = now;
     }
 }

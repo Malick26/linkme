@@ -18,6 +18,7 @@ tags:
   - name: public
   - name: shop
   - name: payments
+  - name: subscriptions
   - name: analytics
   - name: account
 
@@ -529,6 +530,57 @@ paths:
               schema: { $ref: '#/components/schemas/Image' }
         '400': { $ref: '#/components/responses/Problem' }
         '413': { $ref: '#/components/responses/Problem' }
+  /api/me/uploads/sign-audio:
+    post:
+      tags: [uploads]
+      operationId: signAudioUpload
+      summary: "Signer un upload de son Cloudinary (item bloc « sons », D50)"
+      responses:
+        '200':
+          description: Paramètres d'upload signé Cloudinary
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UploadSignature' }
+        '503': { $ref: '#/components/responses/Problem' }
+  /api/me/uploads/complete-audio:
+    post:
+      tags: [uploads]
+      operationId: completeAudioUpload
+      summary: Enregistre un son Cloudinary après upload (vérifie la signature de la réponse Cloudinary)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AudioCompleteRequest' }
+      responses:
+        '201':
+          description: Son
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Audio' }
+        '400': { $ref: '#/components/responses/Problem' }
+  /api/me/uploads/local-audio:
+    post:
+      tags: [uploads]
+      operationId: uploadLocalAudio
+      summary: Upload de son direct (dev / sans Cloudinary). Désactivé si `LOCAL_UPLOADS_ENABLED=false`.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201':
+          description: Son
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Audio' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '413': { $ref: '#/components/responses/Problem' }
 
   # ───────────────────────────── Public
   /api/public/{handle}:
@@ -807,6 +859,90 @@ paths:
       responses:
         '303': { description: Redirection vers la page de confirmation }
 
+  # ───────────────────────────── Abonnement (D44/D45/D46) : plus de plan gratuit publiable — la page publique
+  # exige un abonnement actif. Pas de prélèvement récurrent : on paie une période de 30 jours, à renouveler.
+  /api/subscriptions/plans:
+    get:
+      tags: [subscriptions]
+      operationId: getSubscriptionPlans
+      summary: Catalogue des deux plans payants (public — sert la page tarifs)
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/PlanCatalogEntry' } }
+  /api/me/subscription:
+    get:
+      tags: [subscriptions]
+      operationId: getMySubscription
+      summary: Statut de mon abonnement
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubscriptionStatus' }
+  /api/me/subscription/checkout:
+    post:
+      tags: [subscriptions]
+      operationId: checkoutSubscription
+      summary: "Payer une période d'abonnement (30 jours) — prolonge l'échéance en cours"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SubscriptionCheckoutRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubscriptionCheckoutResponse' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '503': { $ref: '#/components/responses/Problem' }
+  /api/me/subscription/payments/{reference}:
+    get:
+      tags: [subscriptions]
+      operationId: getSubscriptionPayment
+      summary: Statut d'un paiement d'abonnement (page de retour du fournisseur)
+      parameters:
+        - { name: reference, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubscriptionPaymentView' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /api/payments/mock/subscription/{reference}:
+    get:
+      tags: [subscriptions]
+      operationId: mockSubscriptionPaymentPage
+      summary: Page de paiement d'abonnement simulée (profil dev/test uniquement)
+      security: []
+      parameters:
+        - { name: reference, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Page HTML
+          content:
+            text/html:
+              schema: { type: string }
+        '404': { $ref: '#/components/responses/Problem' }
+  /api/payments/mock/subscription/{reference}/complete:
+    post:
+      tags: [subscriptions]
+      operationId: mockSubscriptionPaymentComplete
+      summary: "Simuler l'issue d'un paiement d'abonnement (mock)"
+      security: []
+      parameters:
+        - { name: reference, in: path, required: true, schema: { type: string } }
+        - { name: outcome, in: query, required: true, schema: { type: string, enum: [success, failure, cancel] } }
+      responses:
+        '303': { description: Redirection vers la page de confirmation }
+
 components:
   securitySchemes:
     session:
@@ -923,10 +1059,14 @@ components:
         password: { type: string, minLength: 10, maxLength: 128 }
     Plan:
       type: string
-      enum: [free, pro]
+      description: "Plus de plan gratuit publiable (D45) : les deux seuls plans payants."
+      enum: [standard, boutique]
+    SubscriptionStatusEnum:
+      type: string
+      enum: [inactive, active, expired]
     Me:
       type: object
-      required: [id, email, handle, displayName, plan, published, onboardingCompleted]
+      required: [id, email, handle, displayName, plan, published, onboardingCompleted, subscriptionStatus]
       properties:
         id: { type: string, format: uuid }
         email: { type: string }
@@ -935,6 +1075,8 @@ components:
         plan: { $ref: '#/components/schemas/Plan' }
         published: { type: boolean }
         onboardingCompleted: { type: boolean }
+        subscriptionStatus: { $ref: '#/components/schemas/SubscriptionStatusEnum' }
+        subscriptionExpiresAt: { type: [string, 'null'], format: date-time }
 
     # Images
     AssetKind:
@@ -979,6 +1121,25 @@ components:
         format: { type: string, maxLength: 10 }
         bytes: { type: integer }
 
+    # Sons (item bloc « sons » — upload direct, D50)
+    Audio:
+      type: object
+      required: [id, url]
+      properties:
+        id: { type: string }
+        url: { type: string }
+        format: { type: string }
+        bytes: { type: integer }
+    AudioCompleteRequest:
+      type: object
+      required: [publicId, version, signature, format, bytes]
+      properties:
+        publicId: { type: string, maxLength: 255 }
+        version: { type: integer, format: int64 }
+        signature: { type: string, maxLength: 128 }
+        format: { type: string, maxLength: 10 }
+        bytes: { type: integer }
+
     # Profil
     Category:
       type: string
@@ -986,7 +1147,7 @@ components:
       maxLength: 24
     Profile:
       type: object
-      required: [handle, displayName, taglineLines, categories, bio, published, plan]
+      required: [handle, displayName, taglineLines, categories, bio, published, plan, subscriptionStatus]
       properties:
         handle: { type: string }
         displayName: { type: string }
@@ -995,9 +1156,11 @@ components:
         bio: { type: string, maxLength: 160 }
         backgroundImageId: { type: [string, 'null'] }
         backgroundImage: { oneOf: [ { $ref: '#/components/schemas/Image' }, { type: 'null' } ] }
-        published: { type: boolean }
+        published: { type: boolean, description: "Intention du créateur ; combinée en ET avec l'abonnement actif pour la visibilité réelle (D44)." }
         plan: { $ref: '#/components/schemas/Plan' }
         onboardingCompleted: { type: boolean }
+        subscriptionStatus: { $ref: '#/components/schemas/SubscriptionStatusEnum' }
+        subscriptionExpiresAt: { type: [string, 'null'], format: date-time }
     ProfileUpdate:
       type: object
       required: [displayName, taglineLines, categories, bio]
@@ -1058,6 +1221,7 @@ components:
         subtitle: { type: string, maxLength: 80 }
         icon: { $ref: '#/components/schemas/BlockIcon' }
         thumbnailImageId: { type: [string, 'null'] }
+        backgroundImageId: { type: [string, 'null'], description: "Image de fond de la page de détail du bloc (D50)" }
         url: { oneOf: [ { $ref: '#/components/schemas/SafeUrl' }, { type: 'null' } ], description: Obligatoire pour `link` }
         visible: { type: boolean, default: true }
         config: { $ref: '#/components/schemas/BlockConfig' }
@@ -1080,6 +1244,8 @@ components:
         icon: { $ref: '#/components/schemas/BlockIcon' }
         thumbnailImageId: { type: [string, 'null'] }
         thumbnail: { oneOf: [ { $ref: '#/components/schemas/Image' }, { type: 'null' } ] }
+        backgroundImageId: { type: [string, 'null'] }
+        backgroundImage: { oneOf: [ { $ref: '#/components/schemas/Image' }, { type: 'null' } ] }
         url: { type: [string, 'null'] }
         position: { type: integer }
         visible: { type: boolean }
@@ -1093,6 +1259,7 @@ components:
         description: { type: string, maxLength: 500 }
         url: { oneOf: [ { $ref: '#/components/schemas/SafeUrl' }, { type: 'null' } ] }
         imageId: { type: [string, 'null'] }
+        soundId: { type: [string, 'null'], description: "Son uploadé (D50) ; alternative à `url` pour un item de bloc « sons »" }
     BlockItem:
       type: object
       required: [id, title, position]
@@ -1103,14 +1270,16 @@ components:
         url: { type: [string, 'null'] }
         imageId: { type: [string, 'null'] }
         image: { oneOf: [ { $ref: '#/components/schemas/Image' }, { type: 'null' } ] }
+        soundId: { type: [string, 'null'] }
+        sound: { oneOf: [ { $ref: '#/components/schemas/Audio' }, { type: 'null' } ] }
         embed: { oneOf: [ { $ref: '#/components/schemas/Embed' }, { type: 'null' } ] }
         position: { type: integer }
     Embed:
       type: object
       required: [provider, src]
       properties:
-        provider: { type: string, enum: [youtube, spotify] }
-        src: { type: string, description: URL d'intégration (youtube-nocookie / open.spotify.com/embed) }
+        provider: { type: string, enum: [youtube, spotify, deezer, tiktok] }
+        src: { type: string, description: URL d'intégration (youtube-nocookie / open.spotify.com/embed / widget.deezer.com / tiktok.com/embed) }
 
     # Thème
     ThemeConfig:
@@ -1342,6 +1511,50 @@ components:
     PaymentProviderId:
       type: string
       enum: [mock, paydunya, cinetpay]
+
+    # Abonnement (D44/D45/D46)
+    PlanCatalogEntry:
+      type: object
+      required: [plan, priceXof, periodDays, hasShop]
+      properties:
+        plan: { $ref: '#/components/schemas/Plan' }
+        priceXof: { type: integer, format: int64 }
+        periodDays: { type: integer }
+        hasShop: { type: boolean, description: "Boutique incluse (D45) — false pour Standard." }
+    SubscriptionStatus:
+      type: object
+      required: [plan, status, canPublish]
+      properties:
+        plan: { $ref: '#/components/schemas/Plan' }
+        status: { $ref: '#/components/schemas/SubscriptionStatusEnum' }
+        canPublish: { type: boolean, description: "true si status = active." }
+        expiresAt: { type: [string, 'null'], format: date-time }
+        daysRemaining: { type: [integer, 'null'], format: int64 }
+    SubscriptionCheckoutRequest:
+      type: object
+      required: [plan, phone]
+      properties:
+        plan: { $ref: '#/components/schemas/Plan' }
+        provider: { $ref: '#/components/schemas/PaymentProviderId' }
+        phone: { type: string, maxLength: 40, description: "Numéro utilisé pour le paiement et les rappels de renouvellement." }
+        idempotencyKey: { type: string, maxLength: 64 }
+    SubscriptionCheckoutResponse:
+      type: object
+      required: [reference, status, amountXof]
+      properties:
+        reference: { type: string }
+        paymentUrl: { type: [string, 'null'] }
+        status: { $ref: '#/components/schemas/OrderStatus' }
+        amountXof: { type: integer, format: int64 }
+    SubscriptionPaymentView:
+      type: object
+      required: [reference, status, plan, amountXof]
+      properties:
+        reference: { type: string }
+        status: { $ref: '#/components/schemas/OrderStatus' }
+        plan: { $ref: '#/components/schemas/Plan' }
+        amountXof: { type: integer, format: int64 }
+        paidAt: { type: [string, 'null'], format: date-time }
     CheckoutRequest:
       type: object
       required: [productId, quantity, buyerName, buyerPhone]

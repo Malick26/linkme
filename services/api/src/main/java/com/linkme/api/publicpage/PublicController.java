@@ -59,7 +59,9 @@ public class PublicController {
         CreatorProfile p = published(handle);
         if (!slug.matches("^[a-z0-9-]{1,40}$")) throw ApiException.notFound();
         Block b = blockRepo.findByCreatorIdAndSlug(p.getUserId(), slug).filter(Block::isVisible).orElseThrow(ApiException::notFound);
-        var images = assets.images(java.util.Collections.singletonList(b.getThumbnailAssetId()));
+        // La boutique est réservée au plan Boutique (D45) : masquée si le créateur n'est plus/pas encore sur ce plan.
+        if ("shop".equals(b.getType()) && !p.isBoutique()) throw ApiException.notFound();
+        var images = assets.images(java.util.stream.Stream.of(b.getThumbnailAssetId(), b.getBackgroundAssetId()).filter(java.util.Objects::nonNull).toList());
         var dto = blocks.toDto(b, images == null ? Map.of() : images, null);
         var items = "shop".equals(b.getType()) ? List.<com.linkme.api.blocks.BlockDtos.BlockItemDto>of() : blocks.items(b.getId());
         var prods = "shop".equals(b.getType()) ? products.publicList(p.getUserId()) : List.<com.linkme.api.shop.ShopDtos.PublicProductDto>of();

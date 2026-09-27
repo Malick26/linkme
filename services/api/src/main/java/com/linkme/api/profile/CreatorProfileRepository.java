@@ -1,5 +1,7 @@
 package com.linkme.api.profile;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -8,4 +10,7 @@ public interface CreatorProfileRepository extends JpaRepository<CreatorProfile, 
     Optional<CreatorProfile> findByHandle(String handle);
 
     boolean existsByHandle(String handle);
+
+    /** Bascule quotidienne « active » → « expired » (D46) : abonnements dont l'échéance est dépassée. */
+    List<CreatorProfile> findBySubscriptionStatusAndSubscriptionExpiresAtBefore(String subscriptionStatus, Instant instant);
 }

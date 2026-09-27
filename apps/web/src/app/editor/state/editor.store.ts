@@ -2,7 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom, forkJoin } from 'rxjs';
 import { MeApi } from '../../core/api/me-api.service';
 import type {
-  Block, BlockInput, Image, Profile, ProfileStats, ProfileUpdate, PublicPage, SocialAccount, SocialAccountInput, ThemeConfig, ThemeState,
+  Audio, Block, BlockInput, Image, Profile, ProfileStats, ProfileUpdate, PublicPage, SocialAccount, SocialAccountInput, ThemeConfig, ThemeState,
 } from '../../core/api/types';
 import { AuthStore } from '../../core/auth/auth.store';
 import { presetConfig } from '../../core/theme/presets';
@@ -27,6 +27,8 @@ export class EditorStore {
   readonly themeState = signal<ThemeState | null>(null);
   readonly theme = signal<ThemeConfig>(presetConfig('sunset'));
   readonly images = signal<Record<string, Image>>({});
+  /** Cache des sons uploadés (D50), par id — même rôle que {@link images} pour les items de bloc « sons ». */
+  readonly sounds = signal<Record<string, Audio>>({});
   readonly saveState = signal<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
   private readonly past = signal<ThemeConfig[]>([]);
@@ -55,7 +57,7 @@ export class EditorStore {
         .map((b) => ({ ...b, thumbnail: b.thumbnailImageId ? (this.images()[b.thumbnailImageId] ?? b.thumbnail ?? null) : null })),
       theme,
       images: this.images(),
-      showBranding: p.plan !== 'pro',
+      showBranding: p.plan !== 'boutique',
       preview: false,
     };
   });
@@ -82,6 +84,10 @@ export class EditorStore {
 
   addImage(img: Image): void {
     this.images.update((m) => ({ ...m, [img.id]: img }));
+  }
+
+  addAudio(sound: Audio): void {
+    this.sounds.update((m) => ({ ...m, [sound.id]: sound }));
   }
 
   // ───────────── profil

@@ -114,23 +114,25 @@
       <h2 class="sec__title">{{ 'site.pricing.title' | t }}</h2>
       <div class="plans">
         <div class="plan plan--main">
-          <h3>{{ 'site.pricing.free.name' | t }}</h3>
-          <p class="plan__price">{{ 'site.pricing.free.price' | t }} <small>{{ 'site.pricing.free.note' | t }}</small></p>
+          <h3>{{ 'site.pricing.standard.name' | t }}</h3>
+          <p class="plan__price">{{ 'site.pricing.standard.price' | t }} <small>{{ 'site.pricing.standard.note' | t }}</small></p>
           <ul class="ticks" role="list">
-            <li><lm-icon name="circle-check" [size]="20" />{{ 'site.pricing.free.l1' | t }}</li>
-            <li><lm-icon name="circle-check" [size]="20" />{{ 'site.pricing.free.l2' | t }}</li>
-            <li><lm-icon name="circle-check" [size]="20" />{{ 'site.pricing.free.l3' | t }}</li>
-            <li><lm-icon name="circle-check" [size]="20" />{{ 'site.pricing.free.l4' | t }}</li>
+            <li><lm-icon name="circle-check" [size]="20" />{{ 'site.pricing.standard.l1' | t }}</li>
+            <li><lm-icon name="circle-check" [size]="20" />{{ 'site.pricing.standard.l2' | t }}</li>
+            <li><lm-icon name="circle-check" [size]="20" />{{ 'site.pricing.standard.l3' | t }}</li>
+            <li><lm-icon name="circle-check" [size]="20" />{{ 'site.pricing.standard.l4' | t }}</li>
           </ul>
           <a routerLink="/register" class="ld__btn ld__btn--primary">{{ 'site.hero.cta' | t }}</a>
         </div>
         <div class="plan">
-          <h3>{{ 'site.pricing.pro.name' | t }} <span class="plan__badge">{{ 'site.pricing.pro.badge' | t }}</span></h3>
+          <h3>{{ 'site.pricing.boutique.name' | t }} <span class="plan__badge">{{ 'site.pricing.boutique.badge' | t }}</span></h3>
+          <p class="plan__price">{{ 'site.pricing.boutique.price' | t }} <small>{{ 'site.pricing.boutique.note' | t }}</small></p>
           <ul class="ticks" role="list">
-            <li><lm-icon name="circle-check" [size]="20" />{{ 'site.pricing.pro.l1' | t }}</li>
-            <li><lm-icon name="circle-check" [size]="20" />{{ 'site.pricing.pro.l2' | t }}</li>
-            <li><lm-icon name="circle-check" [size]="20" />{{ 'site.pricing.pro.l3' | t }}</li>
+            <li><lm-icon name="circle-check" [size]="20" />{{ 'site.pricing.boutique.l1' | t }}</li>
+            <li><lm-icon name="circle-check" [size]="20" />{{ 'site.pricing.boutique.l2' | t }}</li>
+            <li><lm-icon name="circle-check" [size]="20" />{{ 'site.pricing.boutique.l3' | t }}</li>
           </ul>
+          <a routerLink="/register" class="ld__btn ld__btn--primary">{{ 'site.hero.cta' | t }}</a>
         </div>
       </div>
       <p class="plans__note">{{ 'site.pricing.commission' | t }}</p>

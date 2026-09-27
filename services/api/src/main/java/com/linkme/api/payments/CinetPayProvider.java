@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.linkme.api.common.ApiException;
 import com.linkme.api.common.Hashing;
 import com.linkme.api.config.AppProperties;
-import com.linkme.api.shop.ShopOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -46,24 +45,24 @@ public class CinetPayProvider implements PaymentProvider {
     }
 
     @Override
-    public PaymentInit initiate(ShopOrder order, PaymentUrls urls) {
-        if (order.getAmountXof() % 5 != 0) {
+    public PaymentInit initiate(Payable payable, PaymentUrls urls) {
+        if (payable.getAmountXof() % 5 != 0) {
             throw ApiException.badRequest("PAYMENT_AMOUNT", "Montant non accepté par le fournisseur (multiple de 5 FCFA requis).");
         }
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("apikey", cfg.apiKey());
         body.put("site_id", cfg.siteId());
-        body.put("transaction_id", order.getReference());
-        body.put("amount", order.getAmountXof());
+        body.put("transaction_id", payable.getReference());
+        body.put("amount", payable.getAmountXof());
         body.put("currency", "XOF");
-        body.put("description", (order.getProductTitle() + " x" + order.getQuantity()).replaceAll("[^\\p{L}\\p{N} x]", " "));
+        body.put("description", payable.checkoutDescription().replaceAll("[^\\p{L}\\p{N} x]", " "));
         body.put("notify_url", urls.notifyUrl());
         body.put("return_url", urls.returnUrl());
         body.put("channels", "ALL");
         body.put("lang", "fr");
-        body.put("customer_name", order.getBuyerName());
-        body.put("customer_surname", order.getBuyerName());
-        body.put("customer_phone_number", order.getBuyerPhone().replace(" ", ""));
+        body.put("customer_name", payable.buyerName());
+        body.put("customer_surname", payable.buyerName());
+        body.put("customer_phone_number", payable.buyerPhone().replace(" ", ""));
         JsonNode res;
         try {
             res = http.post().uri("/payment").contentType(MediaType.APPLICATION_JSON).body(body).retrieve().body(JsonNode.class);
@@ -89,8 +88,8 @@ public class CinetPayProvider implements PaymentProvider {
     }
 
     @Override
-    public VerifiedPayment verify(ShopOrder order) {
-        Map<String, Object> body = Map.of("apikey", cfg.apiKey(), "site_id", cfg.siteId(), "transaction_id", order.getReference());
+    public VerifiedPayment verify(Payable payable) {
+        Map<String, Object> body = Map.of("apikey", cfg.apiKey(), "site_id", cfg.siteId(), "transaction_id", payable.getReference());
         JsonNode res = http.post().uri("/payment/check").contentType(MediaType.APPLICATION_JSON).body(body).retrieve().body(JsonNode.class);
         if (res == null) return new VerifiedPayment(PaymentStatus.PENDING, null, "XOF");
         JsonNode d = res.path("data");

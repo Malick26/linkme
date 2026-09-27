@@ -18,13 +18,17 @@ public class LocalMediaService {
     private final Path dir;
     private final boolean enabled;
     private final long maxBytes;
+    private final long maxAudioBytes;
 
     public record Stored(String fileName, String format, Integer width, Integer height, int bytes, String placeholder) {}
+
+    public record StoredAudio(String fileName, String format, int bytes) {}
 
     public LocalMediaService(AppProperties props) {
         this.dir = Path.of(props.media().dir()).toAbsolutePath().normalize();
         this.enabled = props.media().localUploadsEnabled();
         this.maxBytes = props.media().maxBytes();
+        this.maxAudioBytes = props.media().maxAudioBytes();
     }
 
     public boolean enabled() {
@@ -72,6 +76,35 @@ public class LocalMediaService {
         if (d.length >= 3 && (d[0] & 0xFF) == 0xFF && (d[1] & 0xFF) == 0xD8 && (d[2] & 0xFF) == 0xFF) return "jpg";
         if (d.length >= 8 && (d[0] & 0xFF) == 0x89 && d[1] == 'P' && d[2] == 'N' && d[3] == 'G') return "png";
         if (d.length >= 12 && d[0] == 'R' && d[1] == 'I' && d[2] == 'F' && d[3] == 'F' && d[8] == 'W' && d[9] == 'E' && d[10] == 'B' && d[11] == 'P') return "webp";
+        return null;
+    }
+
+    /** Son d'un item de bloc « sons » (D50). Stockage à part (répertoire commun, extension audio, pas de dimensions). */
+    public StoredAudio storeAudio(byte[] data) {
+        if (!enabled) throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "UPLOAD_UNAVAILABLE", "Upload local désactivé.");
+        if (data.length == 0) throw ApiException.badRequest("UPLOAD_TYPE", "Fichier vide.");
+        if (data.length > maxAudioBytes) throw new ApiException(HttpStatus.PAYLOAD_TOO_LARGE, "UPLOAD_TOO_LARGE", "Son trop lourd (15 Mo maximum).");
+        String format = sniffAudio(data);
+        if (format == null) throw ApiException.badRequest("UPLOAD_TYPE", "Format non supporté (MP3, WAV, M4A ou OGG).");
+        String name = UUID.randomUUID() + "." + format;
+        try {
+            Files.createDirectories(dir);
+            Path target = dir.resolve(name).normalize();
+            if (!target.startsWith(dir)) throw new IllegalStateException("path traversal");
+            Files.write(target, data);
+        } catch (IOException e) {
+            throw new IllegalStateException("Écriture impossible", e);
+        }
+        return new StoredAudio(name, format, data.length);
+    }
+
+    /** Détection audio par « magic bytes » : ID3/trame MP3 brute, RIFF/WAVE, conteneur ISO (M4A) ou OggS. */
+    public static String sniffAudio(byte[] d) {
+        if (d.length >= 3 && d[0] == 'I' && d[1] == 'D' && d[2] == '3') return "mp3";
+        if (d.length >= 2 && (d[0] & 0xFF) == 0xFF && (d[1] & 0xE0) == 0xE0) return "mp3";
+        if (d.length >= 12 && d[0] == 'R' && d[1] == 'I' && d[2] == 'F' && d[3] == 'F' && d[8] == 'W' && d[9] == 'A' && d[10] == 'V' && d[11] == 'E') return "wav";
+        if (d.length >= 4 && d[0] == 'O' && d[1] == 'g' && d[2] == 'g' && d[3] == 'S') return "ogg";
+        if (d.length >= 8 && d[4] == 'f' && d[5] == 't' && d[6] == 'y' && d[7] == 'p') return "m4a";
         return null;
     }
 

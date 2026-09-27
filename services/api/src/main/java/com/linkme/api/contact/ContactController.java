@@ -5,6 +5,7 @@ import com.linkme.api.auth.Handles;
 import com.linkme.api.auth.UserRepository;
 import com.linkme.api.common.ApiException;
 import com.linkme.api.common.PageMeta;
+import com.linkme.api.common.Phones;
 import com.linkme.api.mail.MailService;
 import com.linkme.api.profile.CreatorProfile;
 import com.linkme.api.publicpage.PublicPageAssembler;
@@ -56,13 +57,6 @@ public class ContactController {
 
     public record ContactMessageDto(UUID id, String name, String email, String phone, String message, Instant createdAt) {}
 
-    /** « (221) 77-123-45-67 » → « +221771234567 » : on ne garde que l'indicatif et les chiffres. */
-    static String normalizePhone(String raw) {
-        String s = raw.trim();
-        String plus = s.startsWith("+") ? "+" : "";
-        return plus + s.replaceAll("\\D", "");
-    }
-
     public record ContactMessagePage(List<ContactMessageDto> items, PageMeta page) {}
 
     /** operationId: sendContactMessage */
@@ -75,9 +69,8 @@ public class ContactController {
         boolean hasEmail = in.email() != null && !in.email().isBlank();
         boolean hasPhone = in.phone() != null && !in.phone().isBlank();
         if (!hasEmail && !hasPhone) throw ApiException.validation("email", "Indique un email ou un numéro de téléphone.");
-        String phone = hasPhone ? normalizePhone(in.phone()) : null;
-        if (phone != null && (phone.replaceAll("\\D", "").length() < 8 || phone.replaceAll("\\D", "").length() > 15))
-            throw ApiException.validation("phone", "Numéro de téléphone invalide.");
+        String phone = hasPhone ? Phones.normalize(in.phone()) : null;
+        if (phone != null && !Phones.isValid(phone)) throw ApiException.validation("phone", "Numéro de téléphone invalide.");
         ContactMessage m = messages.save(new ContactMessage(p.getUserId(), in.name().trim(), hasEmail ? in.email().trim() : null,
                 phone, in.message().trim(), clock.instant()));
         String safeName = m.getName().replaceAll("[\\r\\n]", " ");

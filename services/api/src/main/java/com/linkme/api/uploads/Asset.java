@@ -63,5 +63,7 @@ public class Asset {
     public String getKind() { return kind; }
     public Integer getWidth() { return width; }
     public Integer getHeight() { return height; }
+    public String getFormat() { return format; }
+    public Integer getBytes() { return bytes; }
     public String getPlaceholder() { return placeholder; }
 }

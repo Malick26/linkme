@@ -59,7 +59,16 @@ public final class Hashing {
 
     /** Référence de commande non devinable : LM-XXXXXXXXXXXX (alphabet sans caractères ambigus). */
     public static String orderReference() {
-        StringBuilder sb = new StringBuilder("LM-");
+        return reference("LM-");
+    }
+
+    /** Référence de paiement d'abonnement : SB-XXXXXXXXXXXX. Préfixe distinct de LM- pour le dispatch au webhook (D47). */
+    public static String subscriptionReference() {
+        return reference("SB-");
+    }
+
+    private static String reference(String prefix) {
+        StringBuilder sb = new StringBuilder(prefix);
         for (int i = 0; i < 12; i++) sb.append(ALNUM[RANDOM.nextInt(ALNUM.length)]);
         return sb.toString();
     }

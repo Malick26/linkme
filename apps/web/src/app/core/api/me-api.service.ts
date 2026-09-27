@@ -2,12 +2,13 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import type {
-  AnalyticsSummary, AssetKind, Block, BlockInput, BlockItem, BlockItemInput, ContactMessagePage, Earnings, Image, LoginRequest, Me,
-  OrderPage, Product, ProductInput, Profile, ProfileStats, ProfileStatsInput, ProfileUpdate, PublicPage, RegisterRequest,
-  SocialAccount, SocialAccountInput, ThemeConfig, ThemePreset, ThemeState, UploadSignature,
+  AnalyticsSummary, AssetKind, Audio, Block, BlockInput, BlockItem, BlockItemInput, ContactMessagePage, Earnings, Image, LoginRequest, Me,
+  OrderPage, PlanCatalogEntry, Product, ProductInput, Profile, ProfileStats, ProfileStatsInput, ProfileUpdate, PublicPage, RegisterRequest,
+  SocialAccount, SocialAccountInput, SubscriptionCheckoutRequest, SubscriptionCheckoutResponse, SubscriptionPaymentView, SubscriptionStatus,
+  ThemeConfig, ThemePreset, ThemeState, UploadSignature,
 } from './types';
 
-/** Client typé des endpoints authentifiés (contrat : tags auth, profile, blocks, theme, uploads, shop, analytics, account). */
+/** Client typé des endpoints authentifiés (contrat : tags auth, profile, blocks, theme, uploads, shop, subscriptions, analytics, account). */
 @Injectable({ providedIn: 'root' })
 export class MeApi {
   private readonly http = inject(HttpClient);
@@ -63,6 +64,15 @@ export class MeApi {
     fd.append('kind', kind);
     return this.http.post<Image>('/api/me/uploads/local', fd);
   }
+  signAudioUpload(): Observable<UploadSignature> { return this.http.post<UploadSignature>('/api/me/uploads/sign-audio', {}); }
+  completeAudioUpload(body: { publicId: string; version: number; signature: string; format: string; bytes: number }): Observable<Audio> {
+    return this.http.post<Audio>('/api/me/uploads/complete-audio', body);
+  }
+  uploadLocalAudio(file: File): Observable<Audio> {
+    const fd = new FormData();
+    fd.append('file', file);
+    return this.http.post<Audio>('/api/me/uploads/local-audio', fd);
+  }
 
   // boutique
   products(): Observable<Product[]> { return this.http.get<Product[]>('/api/me/products'); }
@@ -73,4 +83,14 @@ export class MeApi {
   earnings(): Observable<Earnings> { return this.http.get<Earnings>('/api/me/earnings'); }
   messages(): Observable<ContactMessagePage> { return this.http.get<ContactMessagePage>('/api/me/messages', { params: { size: 100 } }); }
   analytics(days: 7 | 30): Observable<AnalyticsSummary> { return this.http.get<AnalyticsSummary>('/api/me/analytics', { params: { days } }); }
+
+  // abonnement (D44/D45/D46)
+  plans(): Observable<PlanCatalogEntry[]> { return this.http.get<PlanCatalogEntry[]>('/api/subscriptions/plans'); }
+  subscription(): Observable<SubscriptionStatus> { return this.http.get<SubscriptionStatus>('/api/me/subscription'); }
+  checkoutSubscription(body: SubscriptionCheckoutRequest): Observable<SubscriptionCheckoutResponse> {
+    return this.http.post<SubscriptionCheckoutResponse>('/api/me/subscription/checkout', body);
+  }
+  subscriptionPayment(reference: string): Observable<SubscriptionPaymentView> {
+    return this.http.get<SubscriptionPaymentView>(`/api/me/subscription/payments/${reference}`);
+  }
 }

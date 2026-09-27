@@ -16,6 +16,8 @@ export const EDITOR_ROUTES: Routes = [
       { path: '', pathMatch: 'full', canActivate: [onboardingDoneGuard], loadComponent: () => import('./dashboard/dashboard.component').then((m) => m.DashboardComponent) },
       { path: 'profile', loadComponent: () => import('./profile/profile-page.component').then((m) => m.ProfilePageComponent) },
       { path: 'blocks', loadComponent: () => import('./blocks/blocks-page.component').then((m) => m.BlocksPageComponent) },
+      { path: 'abonnement', loadComponent: () => import('./subscription/subscription-page.component').then((m) => m.SubscriptionPageComponent) },
+      { path: 'abonnement/:reference', loadComponent: () => import('./subscription/subscription-page.component').then((m) => m.SubscriptionPageComponent) },
       { path: 'design', loadComponent: () => import('./theme/theme-editor.component').then((m) => m.ThemeEditorComponent) },
       { path: 'shop', loadComponent: () => import('./shop/shop-page.component').then((m) => m.ShopPageComponent) },
       { path: 'sales', loadComponent: () => import('./sales/sales-page.component').then((m) => m.SalesPageComponent) },

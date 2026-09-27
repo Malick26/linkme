@@ -44,7 +44,9 @@ import { imageSrcset, imageUrl } from '../../core/images/image-url';
 export class PageBackgroundComponent {
   readonly theme = input.required<ThemeConfig>();
   readonly image = input<Image | null>();
-  protected readonly src = computed(() => (this.theme().background.type === 'image' ? imageUrl(this.image(), 1080) : null));
+  /** Bloc « sons »/« voyages » avec sa propre image de fond (D50) : affichée même si le thème du profil n'est pas en mode image. */
+  readonly forceImage = input(false);
+  protected readonly src = computed(() => (this.forceImage() || this.theme().background.type === 'image' ? imageUrl(this.image(), 1080) : null));
   protected readonly srcset = computed(() => imageSrcset(this.image(), [640, 1080, 1600, 2400]));
   protected readonly placeholder = computed(() => {
     const p = this.image()?.placeholder;

@@ -18,14 +18,17 @@ import org.springframework.stereotype.Service;
 @Service
 public class CloudinaryService {
     public static final String ALLOWED_FORMATS = "jpg,jpeg,png,webp";
+    public static final String ALLOWED_AUDIO_FORMATS = "mp3,wav,m4a,ogg";
     private final AppProperties.Cloudinary cfg;
     private final Clock clock;
     private final long maxBytes;
+    private final long maxAudioBytes;
 
     public CloudinaryService(AppProperties props, Clock clock) {
         this.cfg = props.cloudinary();
         this.clock = clock;
         this.maxBytes = props.media().maxBytes();
+        this.maxAudioBytes = props.media().maxAudioBytes();
     }
 
     public boolean enabled() {
@@ -52,6 +55,21 @@ public class CloudinaryService {
                 signParams(params, cfg.apiSecret()), folder, ALLOWED_FORMATS, maxBytes);
     }
 
+    /** Son d'un item de bloc « sons » (D50) : même schéma de signature, mais fournisseur « video » (Cloudinary n'a pas de type « audio » dédié). */
+    public Signature signAudio(UUID ownerId) {
+        if (!enabled()) {
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "UPLOAD_UNAVAILABLE", "Cloudinary n'est pas configuré.");
+        }
+        long ts = clock.instant().getEpochSecond();
+        String folder = folderFor(ownerId);
+        Map<String, String> params = new TreeMap<>();
+        params.put("allowed_formats", ALLOWED_AUDIO_FORMATS);
+        params.put("folder", folder);
+        params.put("timestamp", String.valueOf(ts));
+        return new Signature("https://api.cloudinary.com/v1_1/" + cfg.cloudName() + "/video/upload", cfg.apiKey(), ts,
+                signParams(params, cfg.apiSecret()), folder, ALLOWED_AUDIO_FORMATS, maxAudioBytes);
+    }
+
     /** Algorithme Cloudinary : paramètres triés « k=v » joints par « & », suffixés du secret, SHA-1 hex. */
     public static String signParams(Map<String, String> params, String secret) {
         String toSign = new TreeMap<>(params).entrySet().stream()
@@ -72,5 +90,10 @@ public class CloudinaryService {
 
     public String ogImageUrl(String publicId) {
         return "https://res.cloudinary.com/" + cfg.cloudName() + "/image/upload/f_auto,q_auto,c_fill,g_auto,w_1200,h_630/" + publicId;
+    }
+
+    /** URL de lecture directe d'un son uploadé (resource_type « video », sans piste vidéo). */
+    public String audioUrl(String publicId) {
+        return "https://res.cloudinary.com/" + cfg.cloudName() + "/video/upload/" + publicId;
     }
 }

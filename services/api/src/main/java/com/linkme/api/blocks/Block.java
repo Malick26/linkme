@@ -38,6 +38,9 @@ public class Block {
     @Column(name = "thumbnail_asset_id")
     private UUID thumbnailAssetId;
 
+    @Column(name = "background_asset_id")
+    private UUID backgroundAssetId;
+
     @Column(length = 2048)
     private String url;
 
@@ -77,17 +80,19 @@ public class Block {
     public String getSubtitle() { return subtitle; }
     public String getIcon() { return icon; }
     public UUID getThumbnailAssetId() { return thumbnailAssetId; }
+    public UUID getBackgroundAssetId() { return backgroundAssetId; }
     public String getUrl() { return url; }
     public int getPosition() { return position; }
     public boolean isVisible() { return visible; }
     public Map<String, Object> getConfig() { return config == null ? Map.of() : config; }
 
-    public void update(String title, String subtitle, String icon, UUID thumbnailAssetId, String url, boolean visible,
-                       Map<String, Object> config, Instant now) {
+    public void update(String title, String subtitle, String icon, UUID thumbnailAssetId, UUID backgroundAssetId, String url,
+                       boolean visible, Map<String, Object> config, Instant now) {
         this.title = title;
         this.subtitle = subtitle == null ? "" : subtitle;
         this.icon = icon;
         this.thumbnailAssetId = thumbnailAssetId;
+        this.backgroundAssetId = backgroundAssetId;
         this.url = url;
         this.visible = visible;
         this.config = config == null ? new HashMap<>() : new HashMap<>(config);

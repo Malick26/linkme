@@ -46,10 +46,10 @@ public class PublicPageAssembler {
         this.assetRepo = assetRepo;
     }
 
-    /** Page publiée : handle existant ET publié, sinon vide (→ 404). */
+    /** Page publiée : handle existant, publié ET abonnement actif (D44), sinon vide (→ 404 : le lien est masqué). */
     @Transactional(readOnly = true)
     public Optional<CreatorProfile> findPublished(String handle) {
-        return profiles.findByHandle(handle).filter(CreatorProfile::isPublished);
+        return profiles.findByHandle(handle).filter(CreatorProfile::isVisible);
     }
 
     @Transactional
@@ -57,6 +57,10 @@ public class PublicPageAssembler {
         UUID id = p.getUserId();
         ThemeConfig theme = preview ? themes.draft(id) : themes.published(id);
         List<BlockDto> blockList = blocks.list(id, !preview);
+        // La boutique est réservée au plan Boutique (D45) : sur la page publique, un bloc shop créé avant un
+        // changement de plan ne doit pas rester visible/achetable. L'éditeur (preview) le garde visible pour que
+        // le créateur comprenne pourquoi ("passe en Boutique pour l'activer") plutôt que de le faire disparaître.
+        if (!preview && !p.isBoutique()) blockList = blockList.stream().filter(b -> !"shop".equals(b.type())).toList();
 
         List<UUID> imageIds = new ArrayList<>();
         UUID bgId = parse(theme.background().imageId());
@@ -79,7 +83,7 @@ public class PublicPageAssembler {
 
         return new PublicPage(
                 new PublicProfile(p.getHandle(), p.getDisplayName(), p.getTaglineLines(), p.getCategories(), p.getBio()),
-                profileService.stats(id), socialList, blockList, theme, images, !p.isPro(), preview, new Seo(title, description, og));
+                profileService.stats(id), socialList, blockList, theme, images, !p.isBoutique(), preview, new Seo(title, description, og));
     }
 
     private static UUID parse(String s) {

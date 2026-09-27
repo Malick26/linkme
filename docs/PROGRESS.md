@@ -164,3 +164,80 @@ pré-rendu (D42).
 | `node scripts/check-bundle.mjs` | ✅ 139,1 Ko gzip (limite 150) |
 | Lighthouse mobile `/` (nouvelle page d'accueil) | ✅ **100 · 100 · 100 · 100** |
 | Lighthouse mobile `/malick` | ✅ **98 · 100 · 100 · 100** |
+
+---
+
+## Phase 5 — Chantier « abonnement obligatoire » (demande du 26/09/2026), phase A
+
+Malick a demandé un chantier large (sons/voyages avec upload+liens, parrainage à deux vitesses, portefeuille avec
+décaissement manuel, codes promo admin, CRM WhatsApp/email, collabs négociées) en délégant l'ordre d'exécution.
+Choix : commencer par le **socle payant obligatoire**, car le reste (parrainage sur abonnements, portefeuille,
+promos) n'a de sens qu'une fois qu'un abonnement réel existe. Décisions détaillées : D44–D48.
+
+| Élément | État | Preuve |
+|---|---|---|
+| Migration `V3__subscriptions.sql` (`users.phone`, `creator_profile.plan` → `standard`/`boutique`, `subscription_status/expires_at/started_at`, table `subscription_payment`) | ⚠️ | écrite ; non exécutée ici (Postgres/Testcontainers non lancés dans cette reprise, D26) |
+| `Payable` (D47) : `ShopOrder` et `SubscriptionPayment` implémentent la même interface ; `PaymentService.handleWebhook` distingue les deux flux par préfixe de référence (`LM-`/`SB-`) | ⚠️ | écrit ; compilation Maven impossible ici (D26), relecture manuelle ligne à ligne des signatures existantes |
+| `SubscriptionService`/`SubscriptionController` : catalogue des plans, statut, checkout (idempotent, clé liée au téléphone comme D36), page paiement mock, activation depuis le webhook, expiration planifiée quotidienne (D46) | ⚠️ | idem |
+| Visibilité : `CreatorProfile.isVisible()` (D44) branché sur `PublicPageAssembler`, `PublicController`, `CheckoutService`, `ShopControllers` ; boutique bloquée hors plan Boutique côté création (`BlockService`, `PLAN_REQUIRED`) et côté lecture publique (défense en profondeur, D45) | ⚠️ | idem |
+| Contrat OpenAPI : 4 nouvelles opérations (`/api/subscriptions/plans`, `/api/me/subscription`, `/checkout`, `/payments/{reference}`), `Plan` = `standard`/`boutique`, `Me`/`Profile` enrichis | ✅ | `npm run gen:api` exécuté avec succès (client TS régénéré, `schema.d.ts`) |
+| Front : page « Abonnement » (choix de plan, téléphone, redirection paiement, suivi du retour), bannière éditeur + carte tableau de bord quand l'abonnement n'est pas actif, page d'accueil et tarifs mis à jour aux vrais prix (1 100 / 2 700 FCFA) | ✅ | `ng build` (SSR+prerender) exécuté avec succès, `tsc --noEmit` 0 erreur |
+| Garde-fous front | ✅ | `npm run check:tokens` 0 violation · `node scripts/check-bundle.mjs` page publique inchangée (46,2 Ko gzip, le code d'abonnement est dans le bundle différé de l'éditeur) |
+| Tests d'intégration back (`SubscriptionIT`) : catalogue public, page masquée sans abonnement même publiée, parcours checkout mock → webhook → page visible, échec de paiement ne débloque rien, idempotence du checkout, blocage/déblocage de la boutique par plan | ⚠️ écrits | `services/api/src/test/java/com/linkme/api/it/SubscriptionIT.java` ; non exécutés ici (Testcontainers/Docker indisponibles, D26) — à lancer via `./mvnw verify` |
+| Correction de deux tests existants pour la nouvelle règle D44 (`ThemeAndPublicPageIT` : publier ne suffit plus, il faut aussi un abonnement actif) + nouvel helper `activateSubscription()` dans `AbstractIT` | ⚠️ écrit | non exécuté ici, même limite |
+
+**Gate 5 (partiel)** : contrat ✅ exécuté · front ✅ exécuté (build, tests unitaires, tokens, budget JS, comme les
+phases précédentes) · back **écrit avec tests inclus mais non compilé/exécuté ici** (Maven Central bloqué, D26,
+confirmé à nouveau ce jour). À exécuter chez vous ou en CI avant de considérer cette phase définitivement close :
+`./mvnw verify` (doit inclure `OpenApiContractTest` + `SubscriptionIT` + les tests existants, dont
+`ThemeAndPublicPageIT` corrigé).
+
+**Reste du chantier (non commencé)**, dans l'ordre proposé à Malick : (B) blocs sons/voyages — upload de son *ou*
+lien Deezer/YouTube, lien YouTube/TikTok pour voyage, image de fond par bloc ; (C) parrainage à deux vitesses (20 %
+self-service vs jusqu'à 60 % collab négociée avec expiration) + portefeuille (décaissement manuel dès 1 500 FCFA,
+anti-fraude, trace gain potentiel/réel, noms/numéros masqués) ; (D) codes promo admin (%, nombre d'usages) + CRM
+WhatsApp/email + page d'inscription aux messages ; (E) gestion admin des collabs + pop-up accueil/dashboard.
+
+---
+
+## Phase 5bis — `docker compose up --build` testé et corrigé pour de vrai (26/09/2026)
+
+Malick a signalé que `docker compose up --build` échouait chez lui, avec la consigne explicite de tester et corriger
+moi-même plutôt que de renvoyer des hypothèses. Deux échecs successifs, chacun reproduit/vérifié dans l'environnement
+de construction (D26 : Docker Hub reste bloqué, donc le build Docker complet n'a **pas** pu être relancé de bout en
+bout ici — seule la mécanique de chaque correction a été vérifiée séparément) :
+
+| Échec signalé | Diagnostic | Correction | Vérifié comment |
+|---|---|---|---|
+| `npm ci` échoue avec `ETXTBSY` sur le binaire esbuild pendant le build de l'image `web` | Course connue de Docker Desktop (snapshotter containerd sur Windows) entre l'écriture du binaire natif et son exécution par le postinstall d'esbuild | `apps/web/Dockerfile` : `RUN npm ci --ignore-scripts` puis `RUN npm rebuild esbuild` (deux étapes au lieu d'une) (D49) | Démon Docker réel démarré dans le bac à sable (`sudo dockerd`), mais Docker Hub bloqué (403, politique réseau) → mécanique npm/esbuild vérifiée directement (exécution du binaire produit par les deux séquences), pas la course Docker elle-même |
+| Le conteneur `api` ne démarre plus : Flyway échoue sur `V3__subscriptions.sql`, contrainte `creator_profile_plan_check` violée | L'`UPDATE ... SET plan = 'standard'` s'exécutait **avant** la suppression de l'ancienne contrainte (`free`/`pro` uniquement) | Réordonnancement : `DROP CONSTRAINT` puis `UPDATE` (D49) | PostgreSQL 16 installé pour de vrai via apt (Maven Central/Docker Hub bloqués, mais les dépôts Ubuntu le sont pas) ; migrations V1→V4 rejouées en séquence sur une base fraîche **et** sur une base seedée avec une ligne `plan='pro'` (le cas réel de Malick) — succès dans les deux cas |
+
+**À faire chez Malick** pour clore cette phase : relancer `cd infra && docker compose up --build` en entier ; les deux
+correctifs ci-dessus sont dans le dépôt, mais la course Docker et l'enchaînement complet des migrations sur son vrai
+volume Postgres n'ont pu être rejoués que partiellement ici.
+
+---
+
+## Phase 6 — Chantier B : blocs « sons » et « voyages » enrichis (26/09/2026)
+
+Suite de la Phase 5 (« passe à l'étape suivante ») : upload de son *ou* lien (Deezer/YouTube/Spotify) pour les
+éléments d'un bloc « sons », lien YouTube/TikTok pour un bloc « voyages », et une image de fond par bloc. Détails
+et justification : D50.
+
+| Élément | État | Preuve |
+|---|---|---|
+| Contrat OpenAPI : `backgroundImageId`/`backgroundImage` sur `Block`, `soundId`/`sound` sur `BlockItem`, schémas `Audio`/`AudioCompleteRequest`, 3 opérations (`sign-audio`, `complete-audio`, `local-audio`), `Embed.provider` étendu à `deezer`/`tiktok` | ✅ | `npx @redocly/cli lint` (0 erreur, seulement les avertissements préexistants) + `npm run gen:api` exécuté avec succès |
+| Migration `V4__block_media.sql` (`block.background_asset_id`, `block_item.sound_asset_id`, FK vers `asset`) | ✅ | rejouée pour de vrai sur PostgreSQL 16 réel (apt), après V1→V3, sur base fraîche |
+| Back : `Block`/`BlockItem`/`BlockService` (image de fond, son par item, DTOs), pipeline audio parallèle à celui des images (`AudioDto`, `CloudinaryService.signAudio`/`audioUrl`, `LocalMediaService.storeAudio`/`sniffAudio`, `UploadController` — 3 nouveaux points d'entrée), `EmbedResolver` (Deezer, TikTok), `PublicController`/`DemoSeeder` mis à jour | ⚠️ écrit | relu ligne à ligne (chaque site d'appel de `Block.update()`/`BlockItem.update()` vérifié à la main après changement de signature) ; **compilation Maven toujours impossible ici** (Maven Central bloqué, D26, reconfirmé ce jour) |
+| Test d'intégration `BlockMediaIT` (image de fond sur un bloc, upload local d'un son + rejet d'un format invalide, résolution Deezer/TikTok) | ⚠️ écrit | même limite — à exécuter via `./mvnw verify` |
+| Front : types (`Audio`, `Embed`), `MeApi` (3 méthodes d'upload audio), `ed-audio-upload` (miroir de `ed-image-upload`, sans dimensions), éditeur de bloc (champ image de fond, upload de son pour les items « sons »), rendu public (`<audio controls preload="none">` natif, façades Deezer « audio »/TikTok « vertical », fond de page par bloc via `forceImage` sur `lm-page-background`) | ✅ | `npm run lint` (0 erreur `tsc`, 0 couleur en dur) · `npm test` **75/75** · `npm run build` (SSR + prérendu) · `node scripts/check-bundle.mjs` **139,9 Ko gzip** (limite 150, page publique inchangée : le nouveau code est dans les chunks différés `block-page-component`/éditeur) |
+| i18n (`fr.ts`/`en.ts`) : nouvelles clés pour le champ fond, le son d'item, les erreurs d'upload audio | ✅ | compilation typée (`Dict`) exécutée sans erreur dans `npm run lint` |
+
+**Gate 6 (partiel)**, comme la Phase 5 : front **exécuté et vert** (lint, tests unitaires, build, budget JS) ; back
+**écrit, relu à la main, tests inclus, mais non compilé/exécuté ici** — Maven Central reste bloqué dans cet
+environnement de construction (D26). À exécuter avant de considérer cette phase définitivement close :
+`./mvnw verify` (doit inclure `OpenApiContractTest` + `BlockMediaIT` + tous les tests existants).
+
+**Reste à faire sur ce chantier** : e2e Playwright dédiés (upload de son, image de fond, façades Deezer/TikTok) ;
+vérifier le rendu réel d'un widget Deezer et d'un embed TikTok (jamais testés dans un vrai navigateur ici) ; suite du
+chantier plus large (C, D, E ci-dessus, toujours non commencées).

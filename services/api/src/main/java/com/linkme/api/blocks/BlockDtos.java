@@ -1,5 +1,6 @@
 package com.linkme.api.blocks;
 
+import com.linkme.api.uploads.AudioDto;
 import com.linkme.api.uploads.ImageDto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
@@ -27,22 +28,26 @@ public final class BlockDtos {
             @Size(max = 80) String subtitle,
             @Pattern(regexp = ICONS) String icon,
             @Size(max = 64) String thumbnailImageId,
+            @Size(max = 64) String backgroundImageId,
             @Size(max = 2048) String url,
             Boolean visible,
             @Valid BlockConfig config) {}
 
     public record BlockDto(UUID id, String type, String slug, String title, String subtitle, String icon, String thumbnailImageId,
-                           ImageDto thumbnail, String url, int position, boolean visible, BlockConfig config, Integer itemCount) {}
+                           ImageDto thumbnail, String backgroundImageId, ImageDto backgroundImage, String url, int position,
+                           boolean visible, BlockConfig config, Integer itemCount) {}
 
     public record BlockItemInput(
             @NotBlank @Size(max = 80) String title,
             @Size(max = 500) String description,
             @Size(max = 2048) String url,
-            @Size(max = 64) String imageId) {}
+            @Size(max = 64) String imageId,
+            @Size(max = 64) String soundId) {}
 
     public record Embed(String provider, String src) {}
 
-    public record BlockItemDto(UUID id, String title, String description, String url, String imageId, ImageDto image, Embed embed, int position) {}
+    public record BlockItemDto(UUID id, String title, String description, String url, String imageId, ImageDto image,
+                               String soundId, AudioDto sound, Embed embed, int position) {}
 
     public record OrderRequest(@NotNull @Size(max = 200) List<UUID> ids) {}
 }

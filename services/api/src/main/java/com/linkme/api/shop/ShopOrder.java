@@ -1,5 +1,6 @@
 package com.linkme.api.shop;
 
+import com.linkme.api.payments.Payable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -13,7 +14,7 @@ import java.util.UUID;
 /** Commande. Montants et commission figés à la création (brief §7.4). Jamais supprimée. */
 @Entity
 @Table(name = "orders")
-public class ShopOrder {
+public class ShopOrder implements Payable {
     @Id
     private UUID id;
 
@@ -139,6 +140,17 @@ public class ShopOrder {
     public Instant getPaidAt() { return paidAt; }
 
     public String getPaymentUrl() { return paymentUrl; }
+
+    @Override
+    public String checkoutDescription() {
+        return productTitle + " × " + quantity;
+    }
+
+    @Override
+    public String buyerName() { return buyerName; }
+
+    @Override
+    public String buyerPhone() { return buyerPhone; }
 
     public void attachPayment(String providerRef, String paymentUrl, Instant now) {
         this.providerRef = providerRef;

@@ -43,7 +43,8 @@ public class ProfileService {
     public ProfileDto toDto(CreatorProfile p) {
         String bg = p.getBackgroundAssetId() == null ? null : p.getBackgroundAssetId().toString();
         return new ProfileDto(p.getHandle(), p.getDisplayName(), p.getTaglineLines(), p.getCategories(), p.getBio(), bg,
-                assets.image(p.getBackgroundAssetId()), p.isPublished(), p.getPlan(), p.isOnboardingCompleted());
+                assets.image(p.getBackgroundAssetId()), p.isPublished(), p.getPlan(), p.isOnboardingCompleted(),
+                p.getSubscriptionStatus(), p.getSubscriptionExpiresAt());
     }
 
     @Transactional(readOnly = true)

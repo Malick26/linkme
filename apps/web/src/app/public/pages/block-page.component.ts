@@ -20,6 +20,8 @@ import { useResponseStatus } from './page-context';
 const EMBED_ALLOW = [
   /^https:\/\/www\.youtube-nocookie\.com\/embed\/[\w-]{6,20}$/,
   /^https:\/\/open\.spotify\.com\/embed\/(playlist|track|album|episode|show|artist)\/[A-Za-z0-9]{10,40}$/,
+  /^https:\/\/widget\.deezer\.com\/widget\/dark\/(track|album|playlist)\/[0-9]{1,20}$/,
+  /^https:\/\/www\.tiktok\.com\/embed\/v2\/[0-9]{5,25}$/,
 ];
 
 /** Route `/{handle}/{slug}` — détail d'un bloc (liste d'éléments, boutique ou contact). */
@@ -73,8 +75,14 @@ export class BlockPageComponent {
     return this.sanitizer.bypassSecurityTrustResourceUrl(src);
   }
 
-  protected isSpotify(item: BlockItem): boolean {
-    return item.embed?.provider === 'spotify';
+  /** Widgets audio compacts (façade basse, pas de vidéo) : Spotify et Deezer. */
+  protected isAudioEmbed(item: BlockItem): boolean {
+    return item.embed?.provider === 'spotify' || item.embed?.provider === 'deezer';
+  }
+
+  /** TikTok se lit en format portrait — façade plus haute qu'un YouTube 16/9. */
+  protected isVerticalEmbed(item: BlockItem): boolean {
+    return item.embed?.provider === 'tiktok';
   }
 
   /** Élément dont la façade a été cliquée : lui seul charge son iframe. */
@@ -91,12 +99,18 @@ export class BlockPageComponent {
   }
 
   protected providerName(item: BlockItem): string {
-    return item.embed?.provider === 'spotify' ? 'Spotify' : item.embed?.provider === 'youtube' ? 'YouTube' : '';
+    switch (item.embed?.provider) {
+      case 'spotify': return 'Spotify';
+      case 'youtube': return 'YouTube';
+      case 'deezer': return 'Deezer';
+      case 'tiktok': return 'TikTok';
+      default: return '';
+    }
   }
 
   protected linkLabel(item: BlockItem): I18nKey {
-    if (item.embed?.provider === 'spotify') return 'public.block.listenOn';
-    if (item.embed?.provider === 'youtube') return 'public.block.watchOn';
+    if (item.embed?.provider === 'spotify' || item.embed?.provider === 'deezer') return 'public.block.listenOn';
+    if (item.embed?.provider === 'youtube' || item.embed?.provider === 'tiktok') return 'public.block.watchOn';
     return 'public.block.open';
   }
 

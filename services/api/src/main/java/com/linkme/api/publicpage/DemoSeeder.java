@@ -96,6 +96,9 @@ public class DemoSeeder implements ApplicationRunner {
         p.update("Malick Wane", List.of("Big dreams", "Good energy", "Real progress."), List.of("Travel", "Lifestyle", "Creator"),
                 "Des villes, des gens, des histoires.\nEt encore tellement à vivre…", bg.getId(), now);
         p.setOnboardingCompleted(true, now);
+        p.setPublished(true, now);
+        // Démo = référence de design, pas un compte payant réel : abonnement Boutique actif de façon durable (D44/D45).
+        p.activateSubscription("boutique", 3650, now);
         profiles.save(p);
 
         ProfileStats s = new ProfileStats(id);
@@ -125,7 +128,7 @@ public class DemoSeeder implements ApplicationRunner {
                 config.put("whatsapp", "+221770000000");
                 config.put("email", "contact@example.com");
             }
-            b.update((String) d[2], (String) d[3], (String) d[4], thumbs.get((String) d[0]).getId(), null, true, config, now);
+            b.update((String) d[2], (String) d[3], (String) d[4], thumbs.get((String) d[0]).getId(), null, null, true, config, now);
             byType.put((String) d[0], blocks.save(b));
         }
         item(byType.get("travel"), 0, "Saint-Louis, la ville aux mille couleurs", "Balade sur le pont Faidherbe et coucher de soleil sur le fleuve.", "https://www.youtube.com/watch?v=dQw4w9WgXcQ", thumbs.get("travel"));
@@ -149,7 +152,7 @@ public class DemoSeeder implements ApplicationRunner {
 
     private void item(Block b, int pos, String title, String desc, String url, Asset img) {
         BlockItem i = new BlockItem(b.getId(), pos);
-        i.update(title, desc, url, img == null ? null : img.getId());
+        i.update(title, desc, url, img == null ? null : img.getId(), null);
         items.save(i);
     }
 }

@@ -13,9 +13,17 @@ public record AppProperties(
         Media media,
         Cloudinary cloudinary,
         Payments payments,
+        Subscription subscription,
         RateLimits rateLimits) {
 
-    public record Media(String dir, boolean localUploadsEnabled, long maxBytes) {}
+    public record Media(String dir, boolean localUploadsEnabled, long maxBytes, long maxAudioBytes) {}
+
+    /** Tarifs des deux seuls plans payants (D45) : plus de plan gratuit publiable. */
+    public record Subscription(long standardPriceXof, long boutiquePriceXof, int periodDays) {
+        public long priceFor(String plan) {
+            return "boutique".equals(plan) ? boutiquePriceXof : standardPriceXof;
+        }
+    }
 
     public record Cloudinary(String cloudName, String apiKey, String apiSecret) {
         public boolean enabled() {

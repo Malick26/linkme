@@ -82,6 +82,9 @@ class ThemeAndPublicPageIT extends AbstractIT {
 
         mvc.perform(post("/api/me/theme/publish").session(s).with(csrf())).andExpect(status().isOk())
                 .andExpect(jsonPath("$.hasUnpublishedChanges").value(false)).andExpect(jsonPath("$.version").value(1));
+        // publié mais sans abonnement actif → toujours masqué (D44)
+        mvc.perform(get("/api/public/" + h)).andExpect(status().isNotFound());
+        activateSubscription(s, "standard");
         JsonNode pub = body(mvc.perform(get("/api/public/" + h)).andExpect(status().isOk()).andReturn());
         assertThat(pub.at("/theme/colors/accent").asText()).isEqualTo("#7AA7FF");
 

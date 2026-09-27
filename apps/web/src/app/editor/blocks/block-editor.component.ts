@@ -7,6 +7,7 @@ import { AuthStore } from '../../core/auth/auth.store';
 import { toProblem } from '../../core/http/problem';
 import type { I18nKey } from '../../core/i18n/fr';
 import { I18n, TPipe } from '../../core/i18n/i18n.service';
+import { AudioUploadComponent } from '../shared/audio-upload.component';
 import { ImageUploadComponent } from '../shared/image-upload.component';
 import { EditorStore } from '../state/editor.store';
 
@@ -16,7 +17,7 @@ const ICONS: BlockIcon[] = ['plane', 'shopping-bag', 'music', 'clapperboard', 'm
 @Component({
   selector: 'ed-block-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TPipe, IconComponent, ImageUploadComponent],
+  imports: [TPipe, IconComponent, ImageUploadComponent, AudioUploadComponent],
   template: `
     @let b = block();
     <div class="ed-stack">
@@ -37,6 +38,14 @@ const ICONS: BlockIcon[] = ['plane', 'shopping-bag', 'music', 'clapperboard', 'm
         <ed-image-upload kind="thumbnail" [value]="draft().thumbnailImageId" [image]="draft().thumbnailImageId ? store.images()[draft().thumbnailImageId!] : null"
                          [label]="'blocks.field.thumbnail' | t" (uploaded)="store.addImage($event)" (changed)="patch({ thumbnailImageId: $event })" />
       </div>
+      @if (b.type !== 'link') {
+        <div class="ed-field">
+          <span>{{ 'blocks.field.background' | t }}</span>
+          <ed-image-upload kind="background" [wide]="true" [value]="draft().backgroundImageId" [image]="draft().backgroundImageId ? store.images()[draft().backgroundImageId!] : null"
+                           [label]="'blocks.field.background' | t" (uploaded)="store.addImage($event)" (changed)="patch({ backgroundImageId: $event })" />
+          <p class="ed-muted">{{ 'blocks.field.backgroundHint' | t }}</p>
+        </div>
+      }
       @if (b.type === 'link') {
         <label class="ed-field"><span>{{ 'blocks.field.url' | t }}</span><input type="url" [value]="draft().url ?? ''" (input)="patch({ url: $any($event.target).value || null })" /></label>
       }
@@ -66,9 +75,16 @@ const ICONS: BlockIcon[] = ['plane', 'shopping-bag', 'music', 'clapperboard', 'm
             <li class="item">
               <div class="ed-grid2">
                 <label class="ed-field"><span>{{ 'blocks.item.title' | t }}</span><input [value]="it.title" maxlength="80" (change)="saveItem(it, { title: $any($event.target).value })" /></label>
-                <label class="ed-field"><span>{{ 'blocks.item.url' | t }}</span><input type="url" [value]="it.url ?? ''" (change)="saveItem(it, { url: $any($event.target).value || null })" /></label>
+                <label class="ed-field"><span>{{ (b.type === 'music' ? 'blocks.item.urlMusic' : b.type === 'travel' ? 'blocks.item.urlTravel' : 'blocks.item.url') | t }}</span>
+                  <input type="url" [value]="it.url ?? ''" (change)="saveItem(it, { url: $any($event.target).value || null })" /></label>
               </div>
               <label class="ed-field"><span>{{ 'blocks.item.description' | t }}</span><textarea rows="2" maxlength="500" [value]="it.description ?? ''" (change)="saveItem(it, { description: $any($event.target).value })"></textarea></label>
+              @if (b.type === 'music') {
+                <label class="ed-field">
+                  <span>{{ 'blocks.item.sound' | t }}</span>
+                  <ed-audio-upload [value]="it.soundId" [sound]="it.sound" [label]="'blocks.item.sound' | t" (uploaded)="store.addAudio($event)" (changed)="saveItem(it, { soundId: $event })" />
+                </label>
+              }
               <div class="ed-row">
                 <ed-image-upload kind="item" [value]="it.imageId" [image]="it.image" [label]="'blocks.item.image' | t" (uploaded)="store.addImage($event)" (changed)="saveItem(it, { imageId: $event })" />
                 <button type="button" class="ed-btn ed-btn--icon ed-btn--ghost" (click)="moveItem(i, -1)" [disabled]="i === 0" [attr.aria-label]="'common.moveUp' | t"><lm-icon name="arrow-up" [size]="18" /></button>
@@ -108,7 +124,10 @@ export class BlockEditorComponent implements OnInit {
 
   ngOnInit(): void {
     const b = this.block();
-    this.draft.set({ type: b.type, title: b.title, subtitle: b.subtitle, icon: b.icon, thumbnailImageId: b.thumbnailImageId ?? null, url: b.url ?? null, visible: b.visible, config: b.config ?? {} });
+    this.draft.set({
+      type: b.type, title: b.title, subtitle: b.subtitle, icon: b.icon, thumbnailImageId: b.thumbnailImageId ?? null,
+      backgroundImageId: b.backgroundImageId ?? null, url: b.url ?? null, visible: b.visible, config: b.config ?? {},
+    });
     if (!['shop', 'contact', 'link'].includes(b.type)) void firstValueFrom(this.api.items(b.id)).then((l) => this.items.set(l));
   }
 
@@ -155,7 +174,7 @@ export class BlockEditorComponent implements OnInit {
     this.error.set('');
     try {
       await this.auth.ensureCsrf();
-      const next = { title: it.title, description: it.description ?? '', url: it.url ?? null, imageId: it.imageId ?? null, ...patch };
+      const next = { title: it.title, description: it.description ?? '', url: it.url ?? null, imageId: it.imageId ?? null, soundId: it.soundId ?? null, ...patch };
       const saved = await firstValueFrom(this.api.updateItem(this.block().id, it.id, next));
       this.items.update((l) => l.map((x) => (x.id === it.id ? saved : x)));
     } catch (e) {

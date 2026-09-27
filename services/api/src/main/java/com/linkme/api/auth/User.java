@@ -19,6 +19,10 @@ public class User {
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
+    /** Utilisé pour le paiement d'abonnement (CinetPay l'exige) et les rappels de renouvellement (WhatsApp/email). */
+    @Column(length = 20)
+    private String phone;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -41,6 +45,7 @@ public class User {
     public UUID getId() { return id; }
     public String getEmail() { return email; }
     public String getPasswordHash() { return passwordHash; }
+    public String getPhone() { return phone; }
     public Instant getDeletedAt() { return deletedAt; }
     public Instant getCreatedAt() { return createdAt; }
 
@@ -49,11 +54,17 @@ public class User {
         this.updatedAt = now;
     }
 
+    public void setPhone(String phone, Instant now) {
+        this.phone = phone;
+        this.updatedAt = now;
+    }
+
     /** Suppression de compte : l'email est anonymisé (libère l'adresse), le mot de passe invalidé. */
     public void markDeleted(Instant now) {
         this.deletedAt = now;
         this.email = "deleted-" + id + "@invalid.local";
         this.passwordHash = "!";
+        this.phone = null;
         this.updatedAt = now;
     }
 }

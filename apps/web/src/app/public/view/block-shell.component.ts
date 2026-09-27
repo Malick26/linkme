@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IconComponent, PoweredByComponent } from '../../../design-system';
-import type { PublicPage } from '../../core/api/types';
+import type { Image, PublicPage } from '../../core/api/types';
 import { TPipe } from '../../core/i18n/i18n.service';
 import { themeToCssVars } from '../../core/theme/theme-to-css-vars';
 import { PageBackgroundComponent } from './page-background.component';
@@ -15,7 +15,7 @@ import { PageBackgroundComponent } from './page-background.component';
     @let p = page();
     <div class="lm-page {{ render().classes.join(' ') }}" [style]="render().vars">
       <div class="lm-scope">
-        <lm-page-background [theme]="p.theme" [image]="bg()" />
+        <lm-page-background [theme]="p.theme" [image]="bg()" [forceImage]="!!backgroundImage()" />
         <header class="bs__top">
           <a class="bs__back" [routerLink]="backLink() ?? ['/', p.profile.handle]" [attr.aria-label]="'public.backToProfile' | t: { name: p.profile.displayName }">
             <lm-icon name="arrow-left" [size]="20" />
@@ -58,8 +58,11 @@ export class BlockShellComponent {
   readonly heading = input<string>();
   readonly subheading = input<string | null>();
   readonly backLink = input<string[] | null>(null);
+  /** Image de fond propre au bloc affiché (D50) : prime sur le fond du thème du profil. */
+  readonly backgroundImage = input<Image | null>(null);
   protected readonly render = computed(() => themeToCssVars(this.page().theme));
   protected readonly bg = computed(() => {
+    if (this.backgroundImage()) return this.backgroundImage();
     const id = this.page().theme.background.imageId;
     return id ? (this.page().images[id] ?? null) : null;
   });

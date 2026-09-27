@@ -27,6 +27,10 @@ public class BlockItem {
     @Column(name = "image_asset_id")
     private UUID imageAssetId;
 
+    /** Son uploadé pour cet élément, alternative à un lien (bloc « sons », D50). */
+    @Column(name = "sound_asset_id")
+    private UUID soundAssetId;
+
     @Column(nullable = false)
     private int position;
 
@@ -44,13 +48,15 @@ public class BlockItem {
     public String getDescription() { return description; }
     public String getUrl() { return url; }
     public UUID getImageAssetId() { return imageAssetId; }
+    public UUID getSoundAssetId() { return soundAssetId; }
     public int getPosition() { return position; }
 
-    public void update(String title, String description, String url, UUID imageAssetId) {
+    public void update(String title, String description, String url, UUID imageAssetId, UUID soundAssetId) {
         this.title = title;
         this.description = description == null ? "" : description;
         this.url = url;
         this.imageAssetId = imageAssetId;
+        this.soundAssetId = soundAssetId;
     }
 
     public void setPosition(int position) {

@@ -36,9 +36,9 @@ test.describe("page d'accueil", () => {
   test('les questions fréquentes se déplient', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
-    const q = page.getByText('C’est vraiment gratuit ?');
+    const q = page.getByText('Combien ça coûte vraiment ?');
     await q.click();
-    await expect(page.getByText(/La page, les blocs, le design/)).toBeVisible();
+    await expect(page.getByText(/1 100 FCFA par mois/)).toBeVisible();
   });
 
   test('accessibilité (axe) : 0 violation critique ou sérieuse', async ({ page }) => {

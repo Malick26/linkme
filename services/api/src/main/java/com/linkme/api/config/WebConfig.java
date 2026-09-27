@@ -21,7 +21,7 @@ public class WebConfig implements WebMvcConfigurer {
         this.media = media;
     }
 
-    /** Images uploadées localement (en production, Caddy les sert directement depuis le volume). */
+    /** Images et sons uploadés localement (en production, Caddy les sert directement depuis le volume). */
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         registry.addResourceHandler("/media/**")

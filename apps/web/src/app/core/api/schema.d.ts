@@ -430,6 +430,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/me/uploads/sign-audio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Signer un upload de son Cloudinary (item bloc « sons », D50) */
+        post: operations["signAudioUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/uploads/complete-audio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Enregistre un son Cloudinary après upload (vérifie la signature de la réponse Cloudinary) */
+        post: operations["completeAudioUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/uploads/local-audio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload de son direct (dev / sans Cloudinary). Désactivé si `LOCAL_UPLOADS_ENABLED=false`. */
+        post: operations["uploadLocalAudio"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/{handle}": {
         parameters: {
             query?: never;
@@ -720,6 +771,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/subscriptions/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Catalogue des deux plans payants (public — sert la page tarifs) */
+        get: operations["getSubscriptionPlans"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/subscription": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Statut de mon abonnement */
+        get: operations["getMySubscription"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/subscription/checkout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Payer une période d'abonnement (30 jours) — prolonge l'échéance en cours */
+        post: operations["checkoutSubscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/subscription/payments/{reference}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Statut d'un paiement d'abonnement (page de retour du fournisseur) */
+        get: operations["getSubscriptionPayment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/payments/mock/subscription/{reference}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Page de paiement d'abonnement simulée (profil dev/test uniquement) */
+        get: operations["mockSubscriptionPaymentPage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/payments/mock/subscription/{reference}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Simuler l'issue d'un paiement d'abonnement (mock) */
+        post: operations["mockSubscriptionPaymentComplete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -774,8 +927,13 @@ export interface components {
             token: string;
             password: string;
         };
+        /**
+         * @description Plus de plan gratuit publiable (D45) : les deux seuls plans payants.
+         * @enum {string}
+         */
+        Plan: "standard" | "boutique";
         /** @enum {string} */
-        Plan: "free" | "pro";
+        SubscriptionStatusEnum: "inactive" | "active" | "expired";
         Me: {
             /** Format: uuid */
             id: string;
@@ -785,6 +943,9 @@ export interface components {
             plan: components["schemas"]["Plan"];
             published: boolean;
             onboardingCompleted: boolean;
+            subscriptionStatus: components["schemas"]["SubscriptionStatusEnum"];
+            /** Format: date-time */
+            subscriptionExpiresAt?: string | null;
         };
         /** @enum {string} */
         AssetKind: "background" | "thumbnail" | "product" | "item";
@@ -820,6 +981,20 @@ export interface components {
             format: string;
             bytes: number;
         };
+        Audio: {
+            id: string;
+            url: string;
+            format?: string;
+            bytes?: number;
+        };
+        AudioCompleteRequest: {
+            publicId: string;
+            /** Format: int64 */
+            version: number;
+            signature: string;
+            format: string;
+            bytes: number;
+        };
         Category: string;
         Profile: {
             handle: string;
@@ -829,9 +1004,13 @@ export interface components {
             bio: string;
             backgroundImageId?: string | null;
             backgroundImage?: components["schemas"]["Image"] | null;
+            /** @description Intention du créateur ; combinée en ET avec l'abonnement actif pour la visibilité réelle (D44). */
             published: boolean;
             plan: components["schemas"]["Plan"];
             onboardingCompleted?: boolean;
+            subscriptionStatus: components["schemas"]["SubscriptionStatusEnum"];
+            /** Format: date-time */
+            subscriptionExpiresAt?: string | null;
         };
         ProfileUpdate: {
             displayName: string;
@@ -879,6 +1058,8 @@ export interface components {
             subtitle?: string;
             icon?: components["schemas"]["BlockIcon"];
             thumbnailImageId?: string | null;
+            /** @description Image de fond de la page de détail du bloc (D50) */
+            backgroundImageId?: string | null;
             /** @description Obligatoire pour `link` */
             url?: components["schemas"]["SafeUrl"] | null;
             /** @default true */
@@ -902,6 +1083,8 @@ export interface components {
             icon?: components["schemas"]["BlockIcon"];
             thumbnailImageId?: string | null;
             thumbnail?: components["schemas"]["Image"] | null;
+            backgroundImageId?: string | null;
+            backgroundImage?: components["schemas"]["Image"] | null;
             url?: string | null;
             position: number;
             visible: boolean;
@@ -913,6 +1096,8 @@ export interface components {
             description?: string;
             url?: components["schemas"]["SafeUrl"] | null;
             imageId?: string | null;
+            /** @description Son uploadé (D50) ; alternative à `url` pour un item de bloc « sons » */
+            soundId?: string | null;
         };
         BlockItem: {
             /** Format: uuid */
@@ -922,13 +1107,15 @@ export interface components {
             url?: string | null;
             imageId?: string | null;
             image?: components["schemas"]["Image"] | null;
+            soundId?: string | null;
+            sound?: components["schemas"]["Audio"] | null;
             embed?: components["schemas"]["Embed"] | null;
             position: number;
         };
         Embed: {
             /** @enum {string} */
-            provider: "youtube" | "spotify";
-            /** @description URL d'intégration (youtube-nocookie / open.spotify.com/embed) */
+            provider: "youtube" | "spotify" | "deezer" | "tiktok";
+            /** @description URL d'intégration (youtube-nocookie / open.spotify.com/embed / widget.deezer.com / tiktok.com/embed) */
             src: string;
         };
         ThemeConfig: {
@@ -1119,6 +1306,47 @@ export interface components {
         };
         /** @enum {string} */
         PaymentProviderId: "mock" | "paydunya" | "cinetpay";
+        PlanCatalogEntry: {
+            plan: components["schemas"]["Plan"];
+            /** Format: int64 */
+            priceXof: number;
+            periodDays: number;
+            /** @description Boutique incluse (D45) — false pour Standard. */
+            hasShop: boolean;
+        };
+        SubscriptionStatus: {
+            plan: components["schemas"]["Plan"];
+            status: components["schemas"]["SubscriptionStatusEnum"];
+            /** @description true si status = active. */
+            canPublish: boolean;
+            /** Format: date-time */
+            expiresAt?: string | null;
+            /** Format: int64 */
+            daysRemaining?: number | null;
+        };
+        SubscriptionCheckoutRequest: {
+            plan: components["schemas"]["Plan"];
+            provider?: components["schemas"]["PaymentProviderId"];
+            /** @description Numéro utilisé pour le paiement et les rappels de renouvellement. */
+            phone: string;
+            idempotencyKey?: string;
+        };
+        SubscriptionCheckoutResponse: {
+            reference: string;
+            paymentUrl?: string | null;
+            status: components["schemas"]["OrderStatus"];
+            /** Format: int64 */
+            amountXof: number;
+        };
+        SubscriptionPaymentView: {
+            reference: string;
+            status: components["schemas"]["OrderStatus"];
+            plan: components["schemas"]["Plan"];
+            /** Format: int64 */
+            amountXof: number;
+            /** Format: date-time */
+            paidAt?: string | null;
+        };
         CheckoutRequest: {
             /** Format: uuid */
             productId: string;
@@ -2026,6 +2254,81 @@ export interface operations {
             413: components["responses"]["Problem"];
         };
     };
+    signAudioUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paramètres d'upload signé Cloudinary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadSignature"];
+                };
+            };
+            503: components["responses"]["Problem"];
+        };
+    };
+    completeAudioUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AudioCompleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Son */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Audio"];
+                };
+            };
+            400: components["responses"]["Problem"];
+        };
+    };
+    uploadLocalAudio: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Son */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Audio"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            413: components["responses"]["Problem"];
+        };
+    };
     getPublicPage: {
         parameters: {
             query?: never;
@@ -2437,6 +2740,140 @@ export interface operations {
         };
     };
     mockPaymentComplete: {
+        parameters: {
+            query: {
+                outcome: "success" | "failure" | "cancel";
+            };
+            header?: never;
+            path: {
+                reference: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirection vers la page de confirmation */
+            303: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getSubscriptionPlans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanCatalogEntry"][];
+                };
+            };
+        };
+    };
+    getMySubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionStatus"];
+                };
+            };
+        };
+    };
+    checkoutSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubscriptionCheckoutRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionCheckoutResponse"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    getSubscriptionPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reference: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionPaymentView"];
+                };
+            };
+            404: components["responses"]["Problem"];
+        };
+    };
+    mockSubscriptionPaymentPage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reference: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page HTML */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html": string;
+                };
+            };
+            404: components["responses"]["Problem"];
+        };
+    };
+    mockSubscriptionPaymentComplete: {
         parameters: {
             query: {
                 outcome: "success" | "failure" | "cancel";

@@ -2,7 +2,12 @@
 FROM node:24-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --no-audit --no-fund
+# npm ci --ignore-scripts puis rebuild ciblé d'esbuild dans une couche séparée :
+# évite une course connue (ETXTBSY) où le binaire natif d'esbuild est exécuté
+# par son propre postinstall avant que la couche du système de fichiers ne soit stabilisée
+# (observé avec Docker Desktop / le snapshotter containerd sous Windows).
+RUN npm ci --no-audit --no-fund --ignore-scripts
+RUN npm rebuild esbuild --no-audit --no-fund
 COPY . .
 RUN npm run build
 

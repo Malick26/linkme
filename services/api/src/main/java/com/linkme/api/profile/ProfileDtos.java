@@ -18,7 +18,8 @@ public final class ProfileDtos {
     public static final String PLATFORMS = "tiktok|instagram|youtube|snapchat|x|facebook|linkedin|twitch|spotify|whatsapp";
 
     public record ProfileDto(String handle, String displayName, List<String> taglineLines, List<String> categories, String bio,
-                             String backgroundImageId, ImageDto backgroundImage, boolean published, String plan, boolean onboardingCompleted) {}
+                             String backgroundImageId, ImageDto backgroundImage, boolean published, String plan, boolean onboardingCompleted,
+                             String subscriptionStatus, Instant subscriptionExpiresAt) {}
 
     public record ProfileUpdate(
             @NotBlank @Size(max = 60) String displayName,

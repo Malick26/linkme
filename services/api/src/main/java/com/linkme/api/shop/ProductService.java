@@ -1,6 +1,7 @@
 package com.linkme.api.shop;
 
 import com.linkme.api.common.ApiException;
+import com.linkme.api.profile.CreatorProfileRepository;
 import com.linkme.api.shop.ShopDtos.ProductDto;
 import com.linkme.api.shop.ShopDtos.ProductInput;
 import com.linkme.api.shop.ShopDtos.PublicProductDto;
@@ -20,11 +21,13 @@ public class ProductService {
     public static final int MAX_PRODUCTS = 100;
     private final ProductRepository products;
     private final AssetService assets;
+    private final CreatorProfileRepository profiles;
     private final Clock clock;
 
-    public ProductService(ProductRepository products, AssetService assets, Clock clock) {
+    public ProductService(ProductRepository products, AssetService assets, CreatorProfileRepository profiles, Clock clock) {
         this.products = products;
         this.assets = assets;
+        this.profiles = profiles;
         this.clock = clock;
     }
 
@@ -68,6 +71,8 @@ public class ProductService {
 
     @Transactional
     public ProductDto create(UUID creatorId, ProductInput in) {
+        boolean boutique = profiles.findById(creatorId).map(p -> "boutique".equals(p.getPlan())).orElse(false);
+        if (!boutique) throw ApiException.conflict("PLAN_REQUIRED", "La boutique nécessite l'abonnement Boutique.");
         if (products.countByCreatorIdAndDeletedAtIsNull(creatorId) >= MAX_PRODUCTS) throw ApiException.badRequest("LIMIT", "Nombre maximum de produits atteint.");
         Product p = new Product(creatorId, clock.instant());
         apply(creatorId, p, in);

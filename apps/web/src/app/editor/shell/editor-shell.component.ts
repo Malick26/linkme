@@ -35,6 +35,12 @@ interface NavItem { path: string; icon: string; label: I18nKey; exact?: boolean;
       <main class="sh__main" id="main">
         @if (store.loading()) {
           <p class="sh__loading" role="status">{{ 'common.loading' | t }}</p>
+        } @else if (needsSubscription()) {
+          <a routerLink="/app/abonnement" class="sh__banner">
+            <lm-icon name="crown" [size]="20" />
+            <span><strong>{{ 'subscription.bannerTitle' | t }}</strong> — {{ 'subscription.bannerText' | t }}</span>
+            <span class="sh__bannerCta">{{ 'subscription.bannerCta' | t }}</span>
+          </a>
         }
         <router-outlet />
       </main>
@@ -68,6 +74,11 @@ interface NavItem { path: string; icon: string; label: I18nKey; exact?: boolean;
     .sh__side { display: none; }
     .sh__main { min-width: 0; }
     .sh__loading { padding: 24px; color: var(--ed-muted); }
+    .sh__banner {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 12px; padding: 12px 16px; border-radius: 12px;
+      background: var(--ed-warning-bg, color-mix(in srgb, var(--ed-warning) 16%, transparent)); color: var(--ed-text); text-decoration: none;
+    }
+    .sh__bannerCta { margin-left: auto; font-weight: 700; color: var(--ed-accent); white-space: nowrap; }
     .sh__link {
       display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 14px; border-radius: 10px; border: 0; width: 100%;
       background: transparent; color: var(--ed-muted); font-size: 14px; font-weight: 500; text-decoration: none; cursor: pointer; text-align: left;
@@ -100,6 +111,7 @@ export class EditorShellComponent {
     { path: '/app/profile', icon: 'user', label: 'nav.profile', main: true },
     { path: '/app/blocks', icon: 'link', label: 'nav.blocks', main: true },
     { path: '/app/design', icon: 'palette', label: 'nav.design', main: true },
+    { path: '/app/abonnement', icon: 'crown', label: 'nav.subscription' },
     { path: '/app/shop', icon: 'store', label: 'nav.shop' },
     { path: '/app/sales', icon: 'wallet', label: 'nav.sales' },
     { path: '/app/messages', icon: 'inbox', label: 'nav.messages' },
@@ -110,8 +122,10 @@ export class EditorShellComponent {
   protected readonly moreNav = this.nav.filter((n) => !n.main);
   protected readonly pageUrl = computed(() => {
     const m = this.auth.me();
-    return m?.published ? `/${m.handle}` : null;
+    return m?.published && m?.subscriptionStatus === 'active' ? `/${m.handle}` : null;
   });
+  /** D44 : la page publique exige un abonnement actif — on le rappelle partout dans l'éditeur, pas seulement sur /app/abonnement. */
+  protected readonly needsSubscription = computed(() => this.auth.me()?.subscriptionStatus !== 'active');
 
   constructor() {
     void this.store.load().catch(() => undefined);

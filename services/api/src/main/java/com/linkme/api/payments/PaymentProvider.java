@@ -1,11 +1,11 @@
 package com.linkme.api.payments;
 
-import com.linkme.api.shop.ShopOrder;
 import java.util.Map;
 
 /**
  * Port d'un fournisseur de paiement mobile money (D9, ADR 0005). Un adaptateur n'est actif que si sa configuration
- * est complète ({@link #enabled()}).
+ * est complète ({@link #enabled()}). Généralisé à {@link Payable} (D47) : le même adaptateur encaisse une vente
+ * boutique ({@code ShopOrder}) ou un paiement d'abonnement ({@code SubscriptionPayment}).
  */
 public interface PaymentProvider {
     String id();
@@ -13,13 +13,13 @@ public interface PaymentProvider {
     boolean enabled();
 
     /** Crée la transaction chez le fournisseur et renvoie l'URL de paiement (redirection de l'acheteur). */
-    PaymentInit initiate(ShopOrder order, PaymentUrls urls);
+    PaymentInit initiate(Payable payable, PaymentUrls urls);
 
     /** Analyse une notification (IPN/webhook) : signature, référence, identifiant d'événement. Ne fait AUCUNE confiance au statut annoncé. */
     WebhookNotification parseWebhook(WebhookRequest request);
 
     /** Re-vérification serveur-à-serveur du statut réel et du montant encaissé (D24). */
-    VerifiedPayment verify(ShopOrder order);
+    VerifiedPayment verify(Payable payable);
 
     record PaymentUrls(String returnUrl, String cancelUrl, String notifyUrl) {}
 

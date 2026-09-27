@@ -9,7 +9,9 @@ import com.linkme.api.blocks.BlockDtos.BlockItemDto;
 import com.linkme.api.blocks.BlockDtos.BlockItemInput;
 import com.linkme.api.common.ApiException;
 import com.linkme.api.common.SafeUrls;
+import com.linkme.api.profile.CreatorProfileRepository;
 import com.linkme.api.uploads.AssetService;
+import com.linkme.api.uploads.AudioDto;
 import com.linkme.api.uploads.ImageDto;
 import java.time.Clock;
 import java.util.HashMap;
@@ -31,15 +33,25 @@ public class BlockService {
     private final BlockRepository blocks;
     private final BlockItemRepository items;
     private final AssetService assets;
+    private final CreatorProfileRepository profiles;
     private final ObjectMapper mapper;
     private final Clock clock;
 
-    public BlockService(BlockRepository blocks, BlockItemRepository items, AssetService assets, ObjectMapper mapper, Clock clock) {
+    public BlockService(BlockRepository blocks, BlockItemRepository items, AssetService assets, CreatorProfileRepository profiles,
+                        ObjectMapper mapper, Clock clock) {
         this.blocks = blocks;
         this.items = items;
         this.assets = assets;
+        this.profiles = profiles;
         this.mapper = mapper;
         this.clock = clock;
+    }
+
+    /** La boutique est réservée au plan Boutique (D45) : pas de blocage sur un bloc déjà créé avant un changement de plan. */
+    private void requireShopPlan(UUID creatorId, String type) {
+        if (!"shop".equals(type)) return;
+        boolean boutique = profiles.findById(creatorId).map(p -> "boutique".equals(p.getPlan())).orElse(false);
+        if (!boutique) throw ApiException.conflict("PLAN_REQUIRED", "La boutique nécessite l'abonnement Boutique.");
     }
 
     // ───────────── lecture
@@ -47,7 +59,7 @@ public class BlockService {
     @Transactional(readOnly = true)
     public List<BlockDto> list(UUID creatorId, boolean onlyVisible) {
         List<Block> list = blocks.findByCreatorIdOrderByPositionAsc(creatorId).stream().filter(b -> !onlyVisible || b.isVisible()).toList();
-        Map<String, ImageDto> images = assets.images(list.stream().map(Block::getThumbnailAssetId).toList());
+        Map<String, ImageDto> images = assets.images(Stream.concat(list.stream().map(Block::getThumbnailAssetId), list.stream().map(Block::getBackgroundAssetId)).toList());
         Map<UUID, Integer> counts = new HashMap<>();
         if (!list.isEmpty()) {
             for (Object[] row : items.countByBlockIds(list.stream().map(Block::getId).toList())) {
@@ -59,22 +71,26 @@ public class BlockService {
 
     public BlockDto toDto(Block b, Map<String, ImageDto> images, Integer itemCount) {
         String thumbId = b.getThumbnailAssetId() == null ? null : b.getThumbnailAssetId().toString();
+        String bgId = b.getBackgroundAssetId() == null ? null : b.getBackgroundAssetId().toString();
         return new BlockDto(b.getId(), b.getType(), b.getSlug(), b.getTitle(), b.getSubtitle(), b.getIcon(), thumbId,
-                thumbId == null ? null : images.get(thumbId), b.getUrl(), b.getPosition(), b.isVisible(),
-                mapper.convertValue(b.getConfig(), BlockConfig.class), itemCount);
+                thumbId == null ? null : images.get(thumbId), bgId, bgId == null ? null : images.get(bgId), b.getUrl(), b.getPosition(),
+                b.isVisible(), mapper.convertValue(b.getConfig(), BlockConfig.class), itemCount);
     }
 
     @Transactional(readOnly = true)
     public List<BlockItemDto> items(UUID blockId) {
         List<BlockItem> list = items.findByBlockIdOrderByPositionAsc(blockId);
         Map<String, ImageDto> images = assets.images(list.stream().map(BlockItem::getImageAssetId).toList());
-        return list.stream().map(i -> toItemDto(i, images)).toList();
+        Map<String, AudioDto> sounds = assets.audios(list.stream().map(BlockItem::getSoundAssetId).toList());
+        return list.stream().map(i -> toItemDto(i, images, sounds)).toList();
     }
 
-    private BlockItemDto toItemDto(BlockItem i, Map<String, ImageDto> images) {
+    private BlockItemDto toItemDto(BlockItem i, Map<String, ImageDto> images, Map<String, AudioDto> sounds) {
         String imgId = i.getImageAssetId() == null ? null : i.getImageAssetId().toString();
+        String soundId = i.getSoundAssetId() == null ? null : i.getSoundAssetId().toString();
         EmbedResolver.Embed e = EmbedResolver.resolve(i.getUrl());
         return new BlockItemDto(i.getId(), i.getTitle(), i.getDescription(), i.getUrl(), imgId, imgId == null ? null : images.get(imgId),
+                soundId, soundId == null ? null : sounds.get(soundId),
                 e == null ? null : new BlockDtos.Embed(e.provider(), e.src()), i.getPosition());
     }
 
@@ -82,12 +98,13 @@ public class BlockService {
 
     @Transactional
     public BlockDto create(UUID creatorId, BlockInput in) {
+        requireShopPlan(creatorId, in.type());
         if (blocks.countByCreatorId(creatorId) >= MAX_BLOCKS) throw ApiException.badRequest("LIMIT", "Nombre maximum de blocs atteint.");
         int position = (int) blocks.countByCreatorId(creatorId);
         Block b = new Block(creatorId, in.type(), uniqueSlug(creatorId, in.type(), in.title()), position, clock.instant());
         apply(creatorId, b, in);
         blocks.save(b);
-        return toDto(b, assets.images(Stream.of(b.getThumbnailAssetId()).filter(Objects::nonNull).toList()), 0);
+        return toDto(b, assets.images(Stream.of(b.getThumbnailAssetId(), b.getBackgroundAssetId()).filter(Objects::nonNull).toList()), 0);
     }
 
     @Transactional
@@ -95,16 +112,18 @@ public class BlockService {
         Block b = owned(creatorId, blockId);
         if (!b.getType().equals(in.type())) throw ApiException.validation("type", "Le type d'un bloc ne peut pas changer.");
         apply(creatorId, b, in);
-        return toDto(b, assets.images(Stream.of(b.getThumbnailAssetId()).filter(Objects::nonNull).toList()), (int) items.countByBlockId(b.getId()));
+        return toDto(b, assets.images(Stream.of(b.getThumbnailAssetId(), b.getBackgroundAssetId()).filter(Objects::nonNull).toList()),
+                (int) items.countByBlockId(b.getId()));
     }
 
     private void apply(UUID creatorId, Block b, BlockInput in) {
         UUID thumb = assets.requireOwned(creatorId, "thumbnailImageId", in.thumbnailImageId());
+        UUID background = assets.requireOwned(creatorId, "backgroundImageId", in.backgroundImageId());
         String url = SafeUrls.requireOptional("url", in.url());
         if ("link".equals(in.type()) && url == null) throw ApiException.validation("url", "Un lien simple doit avoir une URL.");
         Map<String, Object> config = in.config() == null ? new HashMap<>() : mapper.convertValue(in.config(), MAP);
         config.values().removeIf(Objects::isNull);
-        b.update(in.title().trim(), in.subtitle() == null ? "" : in.subtitle().trim(), in.icon(), thumb, url,
+        b.update(in.title().trim(), in.subtitle() == null ? "" : in.subtitle().trim(), in.icon(), thumb, background, url,
                 in.visible() == null || in.visible(), config, clock.instant());
     }
 
@@ -156,7 +175,8 @@ public class BlockService {
         BlockItem i = new BlockItem(b.getId(), (int) n);
         applyItem(creatorId, i, in);
         items.save(i);
-        return toItemDto(i, assets.images(Stream.of(i.getImageAssetId()).filter(Objects::nonNull).toList()));
+        return toItemDto(i, assets.images(Stream.of(i.getImageAssetId()).filter(Objects::nonNull).toList()),
+                assets.audios(Stream.of(i.getSoundAssetId()).filter(Objects::nonNull).toList()));
     }
 
     @Transactional
@@ -164,12 +184,14 @@ public class BlockService {
         Block b = owned(creatorId, blockId);
         BlockItem i = items.findByIdAndBlockId(itemId, b.getId()).orElseThrow(ApiException::notFound);
         applyItem(creatorId, i, in);
-        return toItemDto(i, assets.images(Stream.of(i.getImageAssetId()).filter(Objects::nonNull).toList()));
+        return toItemDto(i, assets.images(Stream.of(i.getImageAssetId()).filter(Objects::nonNull).toList()),
+                assets.audios(Stream.of(i.getSoundAssetId()).filter(Objects::nonNull).toList()));
     }
 
     private void applyItem(UUID creatorId, BlockItem i, BlockItemInput in) {
         UUID img = assets.requireOwned(creatorId, "imageId", in.imageId());
-        i.update(in.title().trim(), in.description() == null ? "" : in.description().trim(), SafeUrls.requireOptional("url", in.url()), img);
+        UUID sound = assets.requireOwned(creatorId, "soundId", in.soundId(), "Son inconnu.");
+        i.update(in.title().trim(), in.description() == null ? "" : in.description().trim(), SafeUrls.requireOptional("url", in.url()), img, sound);
     }
 
     @Transactional
@@ -209,7 +231,7 @@ public class BlockService {
         int pos = 0;
         for (D d : defaults) {
             Block b = new Block(creatorId, d.type(), Slugs.DEFAULTS.get(d.type()), pos++, clock.instant());
-            b.update(d.title(), d.subtitle(), d.icon(), null, null, true, new HashMap<>(), clock.instant());
+            b.update(d.title(), d.subtitle(), d.icon(), null, null, null, true, new HashMap<>(), clock.instant());
             blocks.save(b);
         }
     }
