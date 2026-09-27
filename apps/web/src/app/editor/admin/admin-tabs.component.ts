@@ -12,6 +12,8 @@ import { TPipe } from '../../core/i18n/i18n.service';
       <a routerLink="/app/admin/retraits" routerLinkActive="on" ariaCurrentWhenActive="page">{{ 'admin.tab.withdrawals' | t }}</a>
       <a routerLink="/app/admin/promos" routerLinkActive="on" ariaCurrentWhenActive="page">{{ 'admin.tab.promos' | t }}</a>
       <a routerLink="/app/admin/crm" routerLinkActive="on" ariaCurrentWhenActive="page">{{ 'admin.tab.crm' | t }}</a>
+      <a routerLink="/app/admin/collabs" routerLinkActive="on" ariaCurrentWhenActive="page">{{ 'admin.tab.collabs' | t }}</a>
+      <a routerLink="/app/admin/annonces" routerLinkActive="on" ariaCurrentWhenActive="page">{{ 'admin.tab.announcements' | t }}</a>
     </nav>
   `,
   styles: `

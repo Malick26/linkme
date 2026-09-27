@@ -9,6 +9,7 @@ import { AuthStore } from '../../core/auth/auth.store';
 import { formatXof } from '../../core/format/compact-number';
 import { toProblem } from '../../core/http/problem';
 import { I18n, TPipe } from '../../core/i18n/i18n.service';
+import { formatDate } from '../referral/rates';
 
 /** « (77) 123-45-67 » → « 771234567 » : mêmes règles que le formulaire de contact public. */
 function normalizePhone(raw: string): string {
@@ -181,7 +182,7 @@ export class SubscriptionPageComponent {
   }
 
   protected fmtDate(iso: string | null | undefined): string {
-    return iso ? new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+    return formatDate(iso);
   }
 
   protected async pay(): Promise<void> {

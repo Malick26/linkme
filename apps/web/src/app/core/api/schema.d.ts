@@ -1164,6 +1164,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/collabs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Toutes les collabs négociées (en cours puis expirées) */
+        get: operations["adminListCollabs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/announcements/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Annonce en cours pour l'accueil ou le tableau de bord (204 s'il n'y en a pas) */
+        get: operations["getCurrentAnnouncement"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/announcements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Annonces (admin) */
+        get: operations["adminListAnnouncements"];
+        put?: never;
+        /** Créer une annonce (pop-up) */
+        post: operations["adminCreateAnnouncement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/announcements/{announcementId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Modifier une annonce (dont l'activer/la désactiver) */
+        put: operations["adminUpdateAnnouncement"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1979,6 +2048,67 @@ export interface components {
             sent: number;
             /** @description Sans email ou désinscrits. */
             skipped: number;
+        };
+        AdminCollab: {
+            /** Format: uuid */
+            userId: string;
+            handle: string;
+            displayName: string;
+            rateBps: components["schemas"]["RateBps"];
+            /** Format: date-time */
+            expiresAt: string;
+            /** @description false = échéance passée (le parrain est revenu au taux de base). */
+            active: boolean;
+            referees: number;
+            activeReferees: number;
+            totalEarnedXof: components["schemas"]["Money"];
+        };
+        /** @enum {string} */
+        AnnouncementAudience: "landing" | "dashboard" | "both";
+        Announcement: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            body: string;
+            ctaLabel?: string | null;
+            /** @description https://… ou chemin interne commençant par / */
+            ctaUrl?: string | null;
+        };
+        AnnouncementInput: {
+            title: string;
+            body: string;
+            ctaLabel?: string | null;
+            ctaUrl?: string | null;
+            audience: components["schemas"]["AnnouncementAudience"];
+            /**
+             * Format: date-time
+             * @description Vide = tout de suite.
+             */
+            startsAt?: string | null;
+            /**
+             * Format: date-time
+             * @description Vide = sans fin.
+             */
+            endsAt?: string | null;
+            active: boolean;
+        };
+        AdminAnnouncement: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            body: string;
+            ctaLabel?: string | null;
+            ctaUrl?: string | null;
+            audience: components["schemas"]["AnnouncementAudience"];
+            /** Format: date-time */
+            startsAt: string;
+            /** Format: date-time */
+            endsAt?: string | null;
+            active: boolean;
+            /** @description Active et dans sa période : c'est elle (ou une plus récente) qui s'affiche. */
+            live: boolean;
+            /** Format: date-time */
+            createdAt: string;
         };
     };
     responses: {
@@ -3895,6 +4025,133 @@ export interface operations {
                 };
                 content?: never;
             };
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    adminListCollabs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCollab"][];
+                };
+            };
+            403: components["responses"]["Problem"];
+        };
+    };
+    getCurrentAnnouncement: {
+        parameters: {
+            query: {
+                audience: "landing" | "dashboard";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Announcement"];
+                };
+            };
+            /** @description Aucune annonce en cours */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["Problem"];
+        };
+    };
+    adminListAnnouncements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminAnnouncement"][];
+                };
+            };
+            403: components["responses"]["Problem"];
+        };
+    };
+    adminCreateAnnouncement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnnouncementInput"];
+            };
+        };
+        responses: {
+            /** @description Créée */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminAnnouncement"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+        };
+    };
+    adminUpdateAnnouncement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                announcementId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnnouncementInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminAnnouncement"];
+                };
+            };
+            400: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
         };

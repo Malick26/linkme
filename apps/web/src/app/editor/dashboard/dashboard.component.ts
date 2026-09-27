@@ -8,13 +8,15 @@ import { formatXof } from '../../core/format/compact-number';
 import type { I18nKey } from '../../core/i18n/fr';
 import { TPipe } from '../../core/i18n/i18n.service';
 import { ShareService } from '../../public/view/share.service';
+import { AnnouncementPopupComponent } from '../../shared/announcement-popup.component';
 import { EditorStore } from '../state/editor.store';
 
 @Component({
   selector: 'app-dashboard',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TPipe, IconComponent, RouterLink],
+  imports: [TPipe, IconComponent, RouterLink, AnnouncementPopupComponent],
   template: `
+    <app-announcement-popup audience="dashboard" />
     <div class="ed-page ed-stack">
       <h1>{{ 'dash.hello' | t: { name: auth.me()?.displayName ?? '' } }}</h1>
       <section class="ed-card st" [class.st--live]="isLive()">

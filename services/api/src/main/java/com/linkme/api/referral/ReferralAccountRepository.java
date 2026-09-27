@@ -13,6 +13,9 @@ public interface ReferralAccountRepository extends JpaRepository<ReferralAccount
 
     boolean existsByCode(String code);
 
+    /** Collabs négociées, en cours ou expirées (D64). */
+    java.util.List<ReferralAccount> findByCollabRateBpsIsNotNullOrderByCollabExpiresAtDesc();
+
     /** Verrou par créateur : sérialise les demandes de retrait concurrentes (pas de double dépense). */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select a from ReferralAccount a where a.userId = :userId")

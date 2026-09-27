@@ -127,6 +127,9 @@ puis retirable dès 1 500 FCFA depuis **Portefeuille**. Les retraits sont **envo
   ajouté automatiquement).
 - Page publique **`/rejoindre`** : les créateurs pas encore inscrits y laissent leur WhatsApp/email (avec
   consentement) ; ils apparaissent dans le segment Prospects.
+- **Admin → Collabs** : toutes les collabs (en cours / terminées) et modification en un clic.
+- **Admin → Annonces** : un pop-up sur l'accueil et/ou le tableau de bord (titre, texte, bouton facultatif, dates).
+  Une seule s'affiche à la fois ; un visiteur qui la ferme ne la revoit plus.
 
 ### Brancher les paiements
 

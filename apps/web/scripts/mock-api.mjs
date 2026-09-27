@@ -24,7 +24,7 @@ const HEX = /^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$/;
 // ───────────── état
 const db = { users: new Map(), sessions: new Map(), assets: new Map(), orders: new Map(), events: new Set(), messages: [], analytics: [],
   subPayments: new Map(), referralCodes: new Map(), earnings: [], wallet: [], withdrawals: new Map(),
-  promos: new Map(), prospects: new Map(), crmLog: [] };
+  promos: new Map(), prospects: new Map(), crmLog: [], announcements: [] };
 // Abonnements & parrainage (D44–D56) — mêmes règles que le back : 20 % de chaque paiement d'abonnement du filleul
 // (ou collab ≤ 60 %), gel de REFERRAL_HOLD_DAYS jours, retrait dès 1 500 FCFA, admins = MOCK_ADMIN_EMAILS.
 // Écart assumé : le mock n'applique pas le masquage de la page publique sans abonnement (D44), pour garder les
@@ -815,6 +815,54 @@ app.post('/api/admin/crm/contacts/:kind/:id/log', admin, (req, res) => {
 app.get('/api/_mock/prospect-token', (req, res) => {
   const p = [...db.prospects.values()].find((x) => x.email === String(req.query.email ?? '').toLowerCase());
   p ? res.json({ token: p.token }) : problem(res, 404, 'NOT_FOUND', 'Élément introuvable.');
+});
+
+// ───────────── Collabs en liste & annonces (D64–D66)
+app.get('/api/admin/collabs', admin, (_req, res) => {
+  const list = [...db.users.values()].filter((u) => u.collab).map((u) => {
+    const a = adminReferrer(u);
+    return { userId: u.id, handle: u.handle, displayName: u.profile.displayName, rateBps: u.collab.rateBps, expiresAt: u.collab.expiresAt,
+      active: Date.parse(u.collab.expiresAt) > Date.now(), referees: a.referees, activeReferees: a.activeReferees, totalEarnedXof: a.totalEarnedXof };
+  });
+  list.sort((x, y) => (x.active !== y.active ? (x.active ? -1 : 1) : x.active ? x.expiresAt.localeCompare(y.expiresAt) : y.expiresAt.localeCompare(x.expiresAt)));
+  res.json(list);
+});
+const annLive = (a, t = Date.now()) => a.active && Date.parse(a.startsAt) <= t && (!a.endsAt || Date.parse(a.endsAt) > t);
+const annDto = (a) => ({ id: a.id, title: a.title, body: a.body, ctaLabel: a.ctaLabel, ctaUrl: a.ctaUrl, audience: a.audience, startsAt: a.startsAt,
+  endsAt: a.endsAt, active: a.active, live: annLive(a), createdAt: a.createdAt });
+function annValidate(res, b) {
+  if (!b?.title?.trim() || b.title.length > 80) return bad(res, 'title', 'Obligatoire (80 caractères max).');
+  if (!b?.body?.trim() || b.body.length > 500) return bad(res, 'body', 'Obligatoire (500 caractères max).');
+  if (!['landing', 'dashboard', 'both'].includes(b.audience)) return bad(res, 'audience', 'Public inconnu.');
+  const url = b.ctaUrl?.trim() || null, label = b.ctaLabel?.trim() || null;
+  if (url && !(/^\/(?!\/)[A-Za-z0-9/_\-.?=&#%]*$/.test(url) || safeUrl(url))) return bad(res, 'ctaUrl', 'Lien interne invalide.');
+  if (!url !== !label) return bad(res, label ? 'ctaUrl' : 'ctaLabel', 'Le bouton a besoin d’un texte et d’un lien.');
+  const startsAt = b.startsAt ?? now();
+  if (b.endsAt && Date.parse(b.endsAt) <= Date.parse(startsAt)) return bad(res, 'endsAt', 'La fin doit être après le début.');
+  return { title: b.title.trim(), body: b.body.trim(), ctaLabel: label, ctaUrl: url, audience: b.audience, startsAt, endsAt: b.endsAt ?? null, active: b.active !== false };
+}
+app.get('/api/public/announcements/current', (req, res) => {
+  const where = req.query.audience;
+  if (!['landing', 'dashboard'].includes(where)) return bad(res, 'audience', 'Public inconnu.');
+  const a = db.announcements.filter((x) => annLive(x) && (x.audience === where || x.audience === 'both'))
+    .sort((x, y) => y.startsAt.localeCompare(x.startsAt) || y.createdAt.localeCompare(x.createdAt))[0];
+  a ? res.json({ id: a.id, title: a.title, body: a.body, ctaLabel: a.ctaLabel, ctaUrl: a.ctaUrl }) : res.status(204).end();
+});
+app.get('/api/admin/announcements', admin, (_req, res) => res.json([...db.announcements].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map(annDto)));
+app.post('/api/admin/announcements', admin, (req, res) => {
+  const v = annValidate(res, req.body);
+  if (!v || v === res) return;
+  const a = { id: randomUUID(), ...v, createdAt: now() };
+  db.announcements.push(a);
+  res.status(201).json(annDto(a));
+});
+app.put('/api/admin/announcements/:id', admin, (req, res) => {
+  const a = db.announcements.find((x) => x.id === req.params.id);
+  if (!a) return problem(res, 404, 'NOT_FOUND', 'Élément introuvable.');
+  const v = annValidate(res, req.body);
+  if (!v || v === res) return;
+  Object.assign(a, v);
+  res.json(annDto(a));
 });
 
 app.use((req, res) => problem(res, 404, 'NOT_FOUND', 'Élément introuvable.'));

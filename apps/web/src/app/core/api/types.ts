@@ -75,3 +75,9 @@ export type CrmContact = S['CrmContact'];
 export type CrmContactKind = S['CrmContactKind'];
 export type CrmEmailRequest = S['CrmEmailRequest'];
 export type CrmEmailResult = S['CrmEmailResult'];
+// collabs en liste & annonces (D64–D66)
+export type AdminCollab = S['AdminCollab'];
+export type Announcement = S['Announcement'];
+export type AnnouncementInput = S['AnnouncementInput'];
+export type AnnouncementAudience = S['AnnouncementAudience'];
+export type AdminAnnouncement = S['AdminAnnouncement'];

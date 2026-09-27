@@ -290,6 +290,33 @@ public class ReferralService {
                 collabOf(a, now), refs.size(), active, earnings.sumCredited(p.getUserId()));
     }
 
+    /** Liste des collabs (D64) : en cours d'abord (échéance la plus proche en tête), puis expirées. */
+    @Transactional(readOnly = true)
+    public List<ReferralDtos.AdminCollab> adminCollabs() {
+        Instant now = clock.instant();
+        List<ReferralAccount> accs = accounts.findByCollabRateBpsIsNotNullOrderByCollabExpiresAtDesc();
+        Map<UUID, CreatorProfile> byId = profiles.findAllById(accs.stream().map(ReferralAccount::getUserId).toList()).stream()
+                .collect(Collectors.toMap(CreatorProfile::getUserId, Function.identity()));
+        List<ReferralDtos.AdminCollab> out = new java.util.ArrayList<>();
+        for (ReferralAccount a : accs) {
+            CreatorProfile p = byId.get(a.getUserId());
+            if (p == null) continue;
+            List<Referral> refs = referrals.findByReferrerIdOrderByCreatedAtDesc(a.getUserId());
+            int active = (int) profiles.findAllById(refs.stream().map(Referral::getRefereeId).toList()).stream()
+                    .filter(x -> "active".equals(x.getSubscriptionStatus())).count();
+            out.add(new ReferralDtos.AdminCollab(a.getUserId(), p.getHandle(), p.getDisplayName(), a.getCollabRateBps(), a.getCollabExpiresAt(),
+                    a.collabActive(now), refs.size(), active, earnings.sumCredited(a.getUserId())));
+        }
+        out.sort(ReferralService::collabOrder);
+        return out;
+    }
+
+    /** En cours d'abord, échéance la plus proche en tête ; puis expirées, la plus récente en tête. */
+    static int collabOrder(ReferralDtos.AdminCollab x, ReferralDtos.AdminCollab y) {
+        if (x.active() != y.active()) return x.active() ? -1 : 1;
+        return x.active() ? x.expiresAt().compareTo(y.expiresAt()) : y.expiresAt().compareTo(x.expiresAt());
+    }
+
     /** Signaux affichés à l'admin à côté d'une demande de retrait (D54). */
     @Transactional(readOnly = true)
     public ReferralDtos.FraudSignals signals(UUID referrerId) {

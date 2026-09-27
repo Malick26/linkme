@@ -7,12 +7,18 @@ export function formatRate(bps: number): string {
   return `${Number.isInteger(pct) ? pct : pct.toFixed(1).replace('.', ',')}\u00a0%`;
 }
 
+/**
+ * Dates affichées à l'heure de Dakar (UTC, sans heure d'été) : les échéances sont enregistrées en fin de journée à
+ * Dakar ; les afficher dans le fuseau du navigateur (ex. Paris) décalait la date d'un jour.
+ */
+const TZ = 'Africa/Dakar';
+
 export function formatDate(iso: string | null | undefined): string {
-  return iso ? new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  return iso ? new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: TZ }) : '';
 }
 
 export function formatShortDate(iso: string | null | undefined): string {
-  return iso ? new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '';
+  return iso ? new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit', timeZone: TZ }) : '';
 }
 
 /** Mêmes règles que le back ({@code Phones}) : on garde l'indicatif « + » et les chiffres. */

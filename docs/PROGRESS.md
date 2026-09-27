@@ -295,5 +295,29 @@ dans cet environnement ; il passe seul.
 **Gate 8 (partiel)** : front, contrat, base et règles exécutés et verts ; intégration Spring écrite, non compilée ici.
 À faire chez toi : `./mvnw verify` ; configurer `SMTP_*` avant d'utiliser l'email groupé en production.
 
-**Reste** : (E) gestion admin des collabs en liste + pop-up accueil/dashboard.
+**Reste** : (E) — voir Phase 9.
+
+---
+
+## Phase 9 — Chantier E : collabs en liste et annonces en pop-up (27/09/2026)
+
+Malick a dit « continue » sans préciser le contenu du pop-up : hypothèse retenue et documentée (D65) — des annonces
+gérées par l'admin. Décisions : D64–D67.
+
+| Élément | État | Preuve |
+|---|---|---|
+| Contrat : 5 opérations (`adminListCollabs`, `getCurrentAnnouncement`, `adminListAnnouncements`, `adminCreateAnnouncement`, `adminUpdateAnnouncement`) | ✅ | `redocly lint` valide (aucun avertissement ajouté) · `gen:api` · `docs/API.md` (84 opérations) · contrat ↔ handlers **84/84** |
+| Migration `V7__announcements.sql` | ✅ | V1→V7 sur PostgreSQL 16 réel ; contraintes vérifiées (bouton sans lien, fin avant début, public inconnu) |
+| Back : module `announcement`, liste des collabs dans `ReferralService` | ⚠️ écrit | règles pures compilées (`javac -Xlint:all`) et exécutées : **14/14** (période, public, bouton, liens internes/dangereux) — Maven toujours bloqué ici (D26) |
+| Tests back écrits : `AnnouncementIT` (3) | ⚠️ écrits | à exécuter via `./mvnw verify` |
+| Front : onglets Admin **Collabs** et **Annonces**, pop-up sur l'accueil (import dynamique) et le tableau de bord | ✅ | lint 0 erreur / 0 couleur en dur · `npm test` 78/78 · build sans avertissement · JS initial **139,9 Ko gzip** (inchangé, D67) |
+| E2E navigateur | ✅ | `announcements.spec.ts` **6/6** sur 3 répétitions (lien dangereux refusé, pop-up accueil mobile, fermeture mémorisée après rechargement, pas pendant l'onboarding, tableau de bord, désactivation ; collabs : création, liste, modification) · **suite fullstack complète 17/17** (+1 ignoré par conception) en séquentiel · `referral.spec.ts` 3/3 avec le gel à 0 j (collab déplacée dans l'onglet Collabs) · e2e public 17/19 (mêmes 2 écarts de rendu de polices qu'avant, au pixel près) |
+| Captures regardées | ✅ | pop-up accueil 390, admin annonces 1280, admin collabs 1280 — deux défauts vus et corrigés : nom et @handle collés (espace supprimé par Angular) et échéance affichée un jour plus tard (fuseau du navigateur au lieu de Dakar, D66) |
+
+**Gate 9 (partiel)** : comme les phases 5–8 — front, contrat, base et règles exécutés et verts ; intégration Spring
+écrite, non compilée ici.
+
+**Chantier de la demande du 26/09 (B → E) : terminé.** Ce qui reste avant la mise en ligne n'est plus du
+développement mais de la vérification chez Malick : `./mvnw verify` (tout le Java des phases 5 à 9 n'a jamais été
+compilé par Maven), `docker compose up --build`, un paiement réel en sandbox, puis le déploiement (README).
 

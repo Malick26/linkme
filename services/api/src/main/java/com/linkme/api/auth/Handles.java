@@ -13,7 +13,7 @@ public final class Handles {
             "settings", "shop", "help", "support", "legal", "media", "seed", "fonts", "healthz", "static", "assets",
             "www", "about", "blog", "docs", "terms", "privacy", "contact", "dashboard", "account", "home", "index",
             "linkme", "null", "undefined", "commande", "order", "orders", "checkout", "payments", "webhooks", "public",
-            "me", "root", "system", "prospects", "unsubscribe", "rejoindre", "desinscription", "moderator", "staff", "security", "status", "favicon.svg", "robots.txt", "sitemap.xml");
+            "me", "root", "system", "prospects", "unsubscribe", "announcements", "rejoindre", "desinscription", "moderator", "staff", "security", "status", "favicon.svg", "robots.txt", "sitemap.xml");
 
     private Handles() {}
 

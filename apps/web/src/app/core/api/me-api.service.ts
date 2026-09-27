@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import type {
-  AdminPromoCode, AdminReferrer, AdminWithdrawal, CrmContact, CrmContactKind, CrmEmailRequest, CrmEmailResult, CrmSegment, PromoCodeInput, PromoQuote,
+  AdminAnnouncement, AdminCollab, AdminPromoCode, AdminReferrer, AnnouncementInput, AdminWithdrawal, CrmContact, CrmContactKind, CrmEmailRequest, CrmEmailResult, CrmSegment, PromoCodeInput, PromoQuote,
   ProspectInput, AnalyticsSummary, AssetKind, CollabRequest, ReferralCodeInfo, ReferralOverview, Wallet, Withdrawal,
   WithdrawalDecision, WithdrawalRequest, WithdrawalStatus, Audio, Block, BlockInput, BlockItem, BlockItemInput, ContactMessagePage, Earnings, Image, LoginRequest, Me,
   OrderPage, Plan, PlanCatalogEntry, Product, ProductInput, Profile, ProfileStats, ProfileStatsInput, ProfileUpdate, PublicPage, RegisterRequest,
@@ -126,4 +126,10 @@ export class MeApi {
   adminCrmLog(kind: CrmContactKind, id: string, channel: 'whatsapp' | 'email'): Observable<void> {
     return this.http.post<void>(`/api/admin/crm/contacts/${kind}/${id}/log`, { channel });
   }
+
+  // collabs en liste & annonces (D64–D66)
+  adminCollabs(): Observable<AdminCollab[]> { return this.http.get<AdminCollab[]>('/api/admin/collabs'); }
+  adminAnnouncements(): Observable<AdminAnnouncement[]> { return this.http.get<AdminAnnouncement[]>('/api/admin/announcements'); }
+  adminCreateAnnouncement(body: AnnouncementInput): Observable<AdminAnnouncement> { return this.http.post<AdminAnnouncement>('/api/admin/announcements', body); }
+  adminUpdateAnnouncement(id: string, body: AnnouncementInput): Observable<AdminAnnouncement> { return this.http.put<AdminAnnouncement>(`/api/admin/announcements/${id}`, body); }
 }

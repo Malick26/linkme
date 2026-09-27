@@ -51,5 +51,8 @@ public final class ReferralDtos {
     public record AdminReferrer(UUID userId, String handle, String displayName, String code, int baseRateBps, int effectiveRateBps,
                                 Collab collab, int referees, int activeReferees, long totalEarnedXof) {}
 
+    public record AdminCollab(UUID userId, String handle, String displayName, int rateBps, Instant expiresAt, boolean active, int referees,
+                              int activeReferees, long totalEarnedXof) {}
+
     public record CollabRequest(@NotNull @Min(2000) @Max(6000) Integer rateBps, @NotNull Instant expiresAt) {}
 }

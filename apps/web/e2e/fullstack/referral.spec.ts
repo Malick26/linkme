@@ -102,7 +102,7 @@ test('collab 60 %, retrait, refus puis paiement par l’admin', async ({ browser
 
   // l'admin accorde une collab à 60 %
   const admin = await adminPage(browser);
-  await admin.goto('/app/admin/retraits');
+  await admin.goto('/app/admin/collabs');
   await admin.getByLabel('Nom d’utilisateur du créateur').fill(handle);
   await admin.getByRole('button', { name: 'Chercher' }).click();
   await expect(admin.getByText('Pas de collab en cours (taux de base).', { exact: false })).toBeVisible();
@@ -133,7 +133,7 @@ test('collab 60 %, retrait, refus puis paiement par l’admin', async ({ browser
   await parrain.screenshot({ path: 'test-results/wallet-1280.png', fullPage: true });
 
   // l'admin refuse (motif obligatoire) → recrédit
-  await admin.reload();
+  await admin.goto('/app/admin/retraits');
   const card = admin.locator('article', { hasText: `@${handle}` });
   await expect(card.getByText('Envoyer 1 500 FCFA sur Wave')).toBeVisible();
   await expect(card.getByText('701112233', { exact: true })).toBeVisible(); // l'admin voit le numéro complet pour envoyer l'argent

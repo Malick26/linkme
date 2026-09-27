@@ -1264,6 +1264,86 @@ paths:
         '403': { $ref: '#/components/responses/Problem' }
         '404': { $ref: '#/components/responses/Problem' }
 
+  # ───────────────────────────── Collabs en liste & annonces (chantier E, D64–D66)
+  /api/admin/collabs:
+    get:
+      tags: [admin]
+      operationId: adminListCollabs
+      summary: "Toutes les collabs négociées (en cours puis expirées)"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/AdminCollab' } }
+        '403': { $ref: '#/components/responses/Problem' }
+  /api/public/announcements/current:
+    get:
+      tags: [public]
+      operationId: getCurrentAnnouncement
+      summary: "Annonce en cours pour l'accueil ou le tableau de bord (204 s'il n'y en a pas)"
+      security: []
+      parameters:
+        - { name: audience, in: query, required: true, schema: { type: string, enum: [landing, dashboard] } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Announcement' }
+        '204': { description: Aucune annonce en cours }
+        '400': { $ref: '#/components/responses/Problem' }
+  /api/admin/announcements:
+    get:
+      tags: [admin]
+      operationId: adminListAnnouncements
+      summary: Annonces (admin)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/AdminAnnouncement' } }
+        '403': { $ref: '#/components/responses/Problem' }
+    post:
+      tags: [admin]
+      operationId: adminCreateAnnouncement
+      summary: Créer une annonce (pop-up)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AnnouncementInput' }
+      responses:
+        '201':
+          description: Créée
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAnnouncement' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+  /api/admin/announcements/{announcementId}:
+    put:
+      tags: [admin]
+      operationId: adminUpdateAnnouncement
+      summary: Modifier une annonce (dont l'activer/la désactiver)
+      parameters:
+        - { name: announcementId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AnnouncementInput' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminAnnouncement' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+
 components:
   securitySchemes:
     session:
@@ -2223,6 +2303,60 @@ components:
       properties:
         sent: { type: integer }
         skipped: { type: integer, description: "Sans email ou désinscrits." }
+
+    # Collabs en liste & annonces (D64–D66)
+    AdminCollab:
+      type: object
+      required: [userId, handle, displayName, rateBps, expiresAt, active, referees, activeReferees, totalEarnedXof]
+      properties:
+        userId: { type: string, format: uuid }
+        handle: { type: string }
+        displayName: { type: string }
+        rateBps: { $ref: '#/components/schemas/RateBps' }
+        expiresAt: { type: string, format: date-time }
+        active: { type: boolean, description: "false = échéance passée (le parrain est revenu au taux de base)." }
+        referees: { type: integer }
+        activeReferees: { type: integer }
+        totalEarnedXof: { $ref: '#/components/schemas/Money' }
+    AnnouncementAudience:
+      type: string
+      enum: [landing, dashboard, both]
+    Announcement:
+      type: object
+      required: [id, title, body]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        body: { type: string }
+        ctaLabel: { type: [string, 'null'] }
+        ctaUrl: { type: [string, 'null'], description: "https://… ou chemin interne commençant par /" }
+    AnnouncementInput:
+      type: object
+      required: [title, body, audience, active]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 80 }
+        body: { type: string, minLength: 1, maxLength: 500 }
+        ctaLabel: { type: [string, 'null'], maxLength: 40 }
+        ctaUrl: { type: [string, 'null'], maxLength: 500 }
+        audience: { $ref: '#/components/schemas/AnnouncementAudience' }
+        startsAt: { type: [string, 'null'], format: date-time, description: "Vide = tout de suite." }
+        endsAt: { type: [string, 'null'], format: date-time, description: "Vide = sans fin." }
+        active: { type: boolean }
+    AdminAnnouncement:
+      type: object
+      required: [id, title, body, audience, startsAt, active, live, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        body: { type: string }
+        ctaLabel: { type: [string, 'null'] }
+        ctaUrl: { type: [string, 'null'] }
+        audience: { $ref: '#/components/schemas/AnnouncementAudience' }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: [string, 'null'], format: date-time }
+        active: { type: boolean }
+        live: { type: boolean, description: "Active et dans sa période : c'est elle (ou une plus récente) qui s'affiche." }
+        createdAt: { type: string, format: date-time }
 
 security:
   - session: []

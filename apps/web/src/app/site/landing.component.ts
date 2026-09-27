@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ViewContainerRef, afterNextRender, computed, inject, signal, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BrandLogoComponent, IconComponent } from '../../design-system';
 import type { IconName } from '../../design-system';
@@ -62,7 +62,17 @@ export class LandingComponent {
     return `--mk-from:${p.from};--mk-to:${p.to};--mk-accent:${p.accent};--mk-text:${p.text};--mk-muted:${p.muted};--mk-card:${p.card};--mk-border:${p.border}`;
   });
 
+  private readonly announcementSlot = viewChild('announcement', { read: ViewContainerRef });
+
   constructor() {
+    // annonce admin (D66) : import dynamique après le premier rendu, dans le navigateur seulement — ni rendu
+    // serveur, ni poids dans le bundle initial (un @defer ajouterait son moteur au bundle commun, D67)
+    afterNextRender(() => {
+      void import('../shared/announcement-popup.component').then(({ AnnouncementPopupComponent }) => {
+        const ref = this.announcementSlot()?.createComponent(AnnouncementPopupComponent);
+        ref?.setInput('audience', 'landing');
+      });
+    });
     const i18n = inject(I18n);
     inject(SeoService).set({
       title: `${BRAND_NAME} — ${i18n.t('site.hero.title2')}`,

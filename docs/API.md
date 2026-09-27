@@ -25,6 +25,10 @@ Documentation interactive en développement : `http://localhost:8080/v3/api-docs
 
 | Méthode | Chemin | operationId | Accès | Description |
 |---|---|---|---|---|
+| `GET` | `/api/admin/announcements` | `adminListAnnouncements` | session | Annonces (admin) |
+| `POST` | `/api/admin/announcements` | `adminCreateAnnouncement` | session | Créer une annonce (pop-up) |
+| `PUT` | `/api/admin/announcements/{announcementId}` | `adminUpdateAnnouncement` | session | Modifier une annonce (dont l'activer/la désactiver) |
+| `GET` | `/api/admin/collabs` | `adminListCollabs` | session | Toutes les collabs négociées (en cours puis expirées) |
 | `GET` | `/api/admin/crm/contacts` | `adminListCrmContacts` | session | Contacts du CRM par segment (prospects, jamais abonnés, échéance proche, expirés, actifs) |
 | `POST` | `/api/admin/crm/contacts/{kind}/{contactId}/log` | `adminLogCrmContact` | session | Noter qu'un contact a été relancé (ex. message WhatsApp ouvert depuis le CRM) |
 | `POST` | `/api/admin/crm/emails` | `adminSendCrmEmail` | session | Envoyer un email à tout un segment (hors désinscrits), {nom} remplacé par le nom du contact |
@@ -103,6 +107,7 @@ Documentation interactive en développement : `http://localhost:8080/v3/api-docs
 
 | Méthode | Chemin | operationId | Accès | Description |
 |---|---|---|---|---|
+| `GET` | `/api/public/announcements/current` | `getCurrentAnnouncement` | public | Annonce en cours pour l'accueil ou le tableau de bord (204 s'il n'y en a pas) |
 | `GET` | `/api/public/{handle}` | `getPublicPage` | public | Page publique |
 | `GET` | `/api/public/{handle}/blocks/{slug}` | `getPublicBlock` | public | Détail d'un bloc public |
 | `POST` | `/api/public/{handle}/contact` | `sendContactMessage` | public | Envoyer un message au créateur |
@@ -165,4 +170,4 @@ Documentation interactive en développement : `http://localhost:8080/v3/api-docs
 
 ---
 
-79 opérations. Généré depuis le contrat le 2026-09-27 (`python3 infra/scripts/gen_api_doc.py`).
+84 opérations. Généré depuis le contrat le 2026-09-27 (`python3 infra/scripts/gen_api_doc.py`).

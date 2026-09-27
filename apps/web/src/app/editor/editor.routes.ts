@@ -35,6 +35,8 @@ export const EDITOR_ROUTES: Routes = [
       { path: 'admin', pathMatch: 'full', redirectTo: 'admin/retraits' },
       { path: 'admin/retraits', canActivate: [adminGuard], loadComponent: () => import('./admin/admin-withdrawals.component').then((m) => m.AdminWithdrawalsComponent) },
       { path: 'admin/promos', canActivate: [adminGuard], loadComponent: () => import('./admin/admin-promos.component').then((m) => m.AdminPromosComponent) },
+      { path: 'admin/collabs', canActivate: [adminGuard], loadComponent: () => import('./admin/admin-collabs.component').then((m) => m.AdminCollabsComponent) },
+      { path: 'admin/annonces', canActivate: [adminGuard], loadComponent: () => import('./admin/admin-announcements.component').then((m) => m.AdminAnnouncementsComponent) },
       { path: 'admin/crm', canActivate: [adminGuard], loadComponent: () => import('./admin/admin-crm.component').then((m) => m.AdminCrmComponent) },
       { path: 'settings', loadComponent: () => import('./settings/settings-page.component').then((m) => m.SettingsPageComponent) },
     ],

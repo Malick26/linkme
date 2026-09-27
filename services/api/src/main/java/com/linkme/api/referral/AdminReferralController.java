@@ -47,6 +47,12 @@ public class AdminReferralController {
         return wallet.reject(admin.id(), withdrawalId, d);
     }
 
+    /** operationId: adminListCollabs */
+    @GetMapping("/api/admin/collabs")
+    public List<ReferralDtos.AdminCollab> collabs() {
+        return referrals.adminCollabs();
+    }
+
     /** operationId: adminGetReferrer */
     @GetMapping("/api/admin/referrers/{handle}")
     public AdminReferrer referrer(@PathVariable String handle) {
