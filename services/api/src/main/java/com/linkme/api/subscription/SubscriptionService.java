@@ -10,6 +10,7 @@ import com.linkme.api.payments.PaymentProvider;
 import com.linkme.api.payments.PaymentProviderRegistry;
 import com.linkme.api.profile.CreatorProfile;
 import com.linkme.api.profile.CreatorProfileRepository;
+import com.linkme.api.promo.PromoService;
 import com.linkme.api.subscription.SubscriptionDtos.PlanCatalogEntry;
 import com.linkme.api.subscription.SubscriptionDtos.SubscriptionCheckoutRequest;
 import com.linkme.api.subscription.SubscriptionDtos.SubscriptionCheckoutResponse;
@@ -41,19 +42,22 @@ public class SubscriptionService {
     private final PaymentProviderRegistry registry;
     private final AppProperties props;
     private final ApplicationEventPublisher publisher;
+    private final PromoService promos;
     private final Clock clock;
 
     /** Publié quand un paiement d'abonnement vient d'activer/prolonger l'abonnement (le parrainage l'écoute après commit). */
     public record SubscriptionPaid(UUID paymentId, UUID creatorId) {}
 
     public SubscriptionService(CreatorProfileRepository profiles, UserRepository users, SubscriptionPaymentRepository payments,
-                               PaymentProviderRegistry registry, AppProperties props, ApplicationEventPublisher publisher, Clock clock) {
+                               PaymentProviderRegistry registry, AppProperties props, ApplicationEventPublisher publisher, PromoService promos,
+                               Clock clock) {
         this.profiles = profiles;
         this.users = users;
         this.payments = payments;
         this.registry = registry;
         this.props = props;
         this.publisher = publisher;
+        this.promos = promos;
         this.clock = clock;
     }
 
@@ -90,21 +94,33 @@ public class SubscriptionService {
             Optional<SubscriptionPayment> existing = payments.findByCreatorIdAndIdempotencyKey(creatorId, idem);
             if (existing.isPresent()) {
                 SubscriptionPayment p = existing.get();
-                return new SubscriptionCheckoutResponse(p.getReference(), p.getPaymentUrl(), p.getStatus(), p.getAmountXof());
+                return new SubscriptionCheckoutResponse(p.getReference(), p.getPaymentUrl(), p.getStatus(), p.getAmountXof(), p.getDiscountXof());
             }
         }
-        PaymentProvider provider = registry.require(req.provider());
+        // code promo vérifié AVANT tout appel au fournisseur : un code refusé l'est explicitement (D59)
+        PromoService.Applied promo = req.promoCode() == null || req.promoCode().isBlank() ? null : promos.resolve(creatorId, req.promoCode(), req.plan());
         long amount = props.subscription().priceFor(req.plan());
+        boolean free = promo != null && promo.discountXof() >= amount;
+        PaymentProvider provider = free ? null : registry.require(req.provider());
         SubscriptionPayment payment = new SubscriptionPayment(creatorId, req.plan(), props.subscription().periodDays(), amount,
-                provider.id(), creator.getDisplayName(), phone, idem, now);
+                free ? "promo" : provider.id(), creator.getDisplayName(), phone, idem, now);
+        if (promo != null) payment.applyPromo(promo.code().getId(), promo.discountXof());
         payments.saveAndFlush(payment);
+
+        if (free) {
+            // 100 % de réduction : rien à encaisser, activation immédiate sans passer par un fournisseur
+            payment.transition(SubscriptionPaymentStatus.PAID, now);
+            activate(payment, now);
+            return new SubscriptionCheckoutResponse(payment.getReference(), null, payment.getStatus(), 0L, payment.getDiscountXof());
+        }
 
         String base = props.baseUrl();
         String back = base + "/app/abonnement/" + payment.getReference();
         PaymentProvider.PaymentInit init = provider.initiate(payment,
                 new PaymentProvider.PaymentUrls(back, back, base + "/api/webhooks/" + provider.id()));
         payment.attachPayment(init.providerRef(), init.paymentUrl(), clock.instant());
-        return new SubscriptionCheckoutResponse(payment.getReference(), init.paymentUrl(), payment.getStatus(), payment.getAmountXof());
+        return new SubscriptionCheckoutResponse(payment.getReference(), init.paymentUrl(), payment.getStatus(), payment.getAmountXof(),
+                payment.getDiscountXof());
     }
 
     @Transactional(readOnly = true)
@@ -119,6 +135,7 @@ public class SubscriptionService {
     public void activate(SubscriptionPayment payment, Instant now) {
         CreatorProfile creator = profiles.findById(payment.getCreatorId()).orElseThrow(ApiException::notFound);
         creator.activateSubscription(payment.getPlan(), payment.getPeriodDays(), now);
+        if (payment.getPromoCodeId() != null) promos.recordUse(payment.getPromoCodeId());
         // la commission du parrain est calculée APRÈS commit, dans sa propre transaction : un incident côté
         // parrainage ne doit jamais empêcher l'activation d'un abonnement payé (D51)
         publisher.publishEvent(new SubscriptionPaid(payment.getId(), payment.getCreatorId()));

@@ -117,6 +117,17 @@ puis retirable dès 1 500 FCFA depuis **Portefeuille**. Les retraits sont **envo
    transaction) — ou **Refuser** avec un motif : le montant est recrédité au créateur, qui reçoit un email ;
 4. même page, section **Collabs négociées** : taux entre 20 et 60 % et date d'expiration pour un créateur donné.
 
+### Codes promo et CRM (espace admin)
+
+- **Admin → Codes promo** : code, % de réduction, nombre d'utilisations, date de fin facultative. Le créateur le
+  saisit sur la page Abonnement ; l'usage est compté quand le paiement réussit. Un code à 100 % active l'abonnement
+  sans paiement.
+- **Admin → CRM** : segments (prospects, jamais abonnés, échéance < 7 jours, expirés, actifs), message modèle,
+  bouton **WhatsApp** (ouvre WhatsApp avec le message prêt) et **email groupé** (SMTP requis, lien de désinscription
+  ajouté automatiquement).
+- Page publique **`/rejoindre`** : les créateurs pas encore inscrits y laissent leur WhatsApp/email (avec
+  consentement) ; ils apparaissent dans le segment Prospects.
+
 ### Brancher les paiements
 
 1. **PayDunya** (<https://paydunya.com>) : créer une application, récupérer *Master Key*, *Private Key*, *Token*,

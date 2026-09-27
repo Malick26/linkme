@@ -268,6 +268,32 @@ règle de limitation de débit des uploads ne couvrait pas les uploads audio de 
 **écrite mais non compilée ici**. À faire chez toi : `./mvnw verify` (doit inclure `ReferralIT`, `WalletIT`,
 `ReferralRulesTest`, `OpenApiContractTest`), puis mettre ton email dans `ADMIN_EMAILS`.
 
-**Reste du chantier** : (D) codes promo admin (%, nombre d'usages) + CRM WhatsApp/email + page d'inscription aux
-messages ; (E) gestion admin des collabs en liste + pop-up accueil/dashboard.
+**Reste du chantier** : (D) — voir Phase 8 ; (E) gestion admin des collabs en liste + pop-up accueil/dashboard.
+
+---
+
+## Phase 8 — Chantier D : codes promo, prospects et CRM WhatsApp/email (27/09/2026)
+
+Choix confirmés par Malick : codes promo sur les **abonnements**, WhatsApp par **liens wa.me pré-remplis** (emails
+automatiques), page d'inscription pour les **prospects**. Décisions : D59–D63.
+
+| Élément | État | Preuve |
+|---|---|---|
+| Contrat : 9 opérations (`quotePromoCode`, `adminListPromoCodes`, `adminCreatePromoCode`, `adminDeactivatePromoCode`, `joinProspectList`, `unsubscribe`, `adminListCrmContacts`, `adminSendCrmEmail`, `adminLogCrmContact`), `promoCode`/`discountXof` au checkout | ✅ | `redocly lint` valide (1 avertissement ajouté : tag `crm` sans description, comme les 14 autres) · `gen:api` · `docs/API.md` (79 opérations) · contrat ↔ handlers **79/79** |
+| Migration `V6__promo_crm.sql` | ✅ | V1→V6 rejouées sur PostgreSQL 16 réel ; contraintes vérifiées : code en minuscules / 0 % / 0 usage refusés, un code par créateur tant qu'un paiement est en attente (libéré après échec), prospect sans moyen de contact refusé, email en double (casse ignorée), canal inconnu |
+| Back : modules `promo` et `crm`, checkout avec code (y compris 100 % sans fournisseur), usage compté au paiement, emails groupés avec lien de désinscription, `MailService.available()` | ⚠️ écrit | règles pures compilées (`javac -Xlint:all`) et exécutées : **12/12** ; reste relu — Maven toujours bloqué ici (D26) |
+| Tests back écrits : `PromoIT` (4), `CrmIT` (3), `PromoCrmRulesTest` (3) | ⚠️ écrits | à exécuter via `./mvnw verify` |
+| Front : champ code promo à l'abonnement (aperçu du prix, recalcul si on change de plan, « Activer gratuitement » à 100 %), admin à onglets **Retraits / Codes promo / CRM**, pages publiques `/rejoindre` et `/desinscription`, lien au pied de l'accueil | ✅ | `npm run lint` 0 erreur / 0 couleur en dur · `npm test` **78/78** (+3 : numéros wa.me) · build sans avertissement, 6 routes pré-rendues · JS initial **139,9 Ko gzip** (textes de /rejoindre chargés avec la page, D57) |
+| E2E navigateur (mock mis à niveau) | ✅ | `promo-crm.spec.ts` **12/12** sur 3 répétitions (−50 % Boutique + recalcul Standard + usage compté, code 100 % puis épuisé, prospect → CRM → WhatsApp pré-rempli → email groupé → désinscription, admin refusé aux créateurs) ; `referral.spec.ts` 3/3 (gel 0 j) ; suite fullstack 12/14 en parallèle — les 2 échecs repassent seuls (voir ci-dessous) |
+| Captures regardées | ✅ | `/rejoindre` 390, abonnement avec code 390, admin codes promo 1280, CRM 1280/390 — pas de débordement horizontal |
+
+Trouvé en route : le test « prospect » échouait au 2ᵉ passage parce qu'il réutilisait le même numéro — c'est le
+dédoublonnage voulu (D61), le test utilise désormais un numéro propre à chaque passage. Le test « la photo de fond
+renvoie vers Design » (phase de revue du 20/09) dépasse parfois son délai quand 2 navigateurs tournent en parallèle
+dans cet environnement ; il passe seul.
+
+**Gate 8 (partiel)** : front, contrat, base et règles exécutés et verts ; intégration Spring écrite, non compilée ici.
+À faire chez toi : `./mvnw verify` ; configurer `SMTP_*` avant d'utiliser l'email groupé en production.
+
+**Reste** : (E) gestion admin des collabs en liste + pop-up accueil/dashboard.
 

@@ -73,6 +73,13 @@ public class SubscriptionPayment implements Payable {
     @Column(name = "paid_at")
     private Instant paidAt;
 
+    /** Code promo appliqué (D59) et réduction figée au checkout ; {@code amountXof} est déjà le prix réduit. */
+    @Column(name = "promo_code_id")
+    private UUID promoCodeId;
+
+    @Column(name = "discount_xof", nullable = false)
+    private long discountXof;
+
     protected SubscriptionPayment() {}
 
     public SubscriptionPayment(UUID creatorId, String plan, int periodDays, long amountXof, String provider, String payerName,
@@ -107,6 +114,15 @@ public class SubscriptionPayment implements Payable {
     public boolean isNeedsAttention() { return needsAttention; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getPaidAt() { return paidAt; }
+    public UUID getPromoCodeId() { return promoCodeId; }
+    public long getDiscountXof() { return discountXof; }
+
+    public void applyPromo(UUID promoCodeId, long discountXof) {
+        if (discountXof < 0 || discountXof > amountXof) throw new IllegalArgumentException("réduction");
+        this.promoCodeId = promoCodeId;
+        this.discountXof = discountXof;
+        this.amountXof = amountXof - discountXof;
+    }
 
     @Override
     public String checkoutDescription() {

@@ -23,6 +23,7 @@ tags:
   - name: account
   - name: referrals
   - name: admin
+  - name: crm
 
 paths:
   # ───────────────────────────── Auth
@@ -1112,6 +1113,157 @@ paths:
         '403': { $ref: '#/components/responses/Problem' }
         '404': { $ref: '#/components/responses/Problem' }
 
+  # ───────────────────────────── Codes promo, prospects & CRM (chantier D, D59–D63)
+  /api/me/subscription/promo:
+    get:
+      tags: [subscriptions]
+      operationId: quotePromoCode
+      summary: "Prix d'un plan avec un code promo (aperçu avant paiement)"
+      parameters:
+        - { name: code, in: query, required: true, schema: { type: string, maxLength: 24 } }
+        - { name: plan, in: query, required: true, schema: { $ref: '#/components/schemas/Plan' } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PromoQuote' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /api/admin/promo-codes:
+    get:
+      tags: [admin]
+      operationId: adminListPromoCodes
+      summary: Codes promo (admin)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/AdminPromoCode' } }
+        '403': { $ref: '#/components/responses/Problem' }
+    post:
+      tags: [admin]
+      operationId: adminCreatePromoCode
+      summary: "Créer un code promo (% de réduction, nombre d'usages, échéance facultative)"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PromoCodeInput' }
+      responses:
+        '201':
+          description: Créé
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminPromoCode' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /api/admin/promo-codes/{promoId}/deactivate:
+    post:
+      tags: [admin]
+      operationId: adminDeactivatePromoCode
+      summary: Désactiver un code promo
+      parameters:
+        - { name: promoId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminPromoCode' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /api/public/prospects:
+    post:
+      tags: [crm]
+      operationId: joinProspectList
+      summary: "S'inscrire pour recevoir les nouveautés (page /rejoindre) — réponse identique qu'on soit déjà inscrit ou non"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProspectInput' }
+      responses:
+        '202': { description: Inscription enregistrée }
+        '400': { $ref: '#/components/responses/Problem' }
+        '429': { $ref: '#/components/responses/Problem' }
+  /api/public/unsubscribe:
+    post:
+      tags: [crm]
+      operationId: unsubscribe
+      summary: "Se désinscrire des messages (lien présent dans chaque email) — réponse identique que le jeton existe ou non"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string, maxLength: 64 }
+      responses:
+        '204': { description: Désinscrit }
+        '400': { $ref: '#/components/responses/Problem' }
+        '429': { $ref: '#/components/responses/Problem' }
+  /api/admin/crm/contacts:
+    get:
+      tags: [admin]
+      operationId: adminListCrmContacts
+      summary: "Contacts du CRM par segment (prospects, jamais abonnés, échéance proche, expirés, actifs)"
+      parameters:
+        - { name: segment, in: query, required: true, schema: { $ref: '#/components/schemas/CrmSegment' } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/CrmContact' } }
+        '403': { $ref: '#/components/responses/Problem' }
+  /api/admin/crm/emails:
+    post:
+      tags: [admin]
+      operationId: adminSendCrmEmail
+      summary: "Envoyer un email à tout un segment (hors désinscrits), {nom} remplacé par le nom du contact"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CrmEmailRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CrmEmailResult' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '503': { $ref: '#/components/responses/Problem' }
+  /api/admin/crm/contacts/{kind}/{contactId}/log:
+    post:
+      tags: [admin]
+      operationId: adminLogCrmContact
+      summary: "Noter qu'un contact a été relancé (ex. message WhatsApp ouvert depuis le CRM)"
+      parameters:
+        - { name: kind, in: path, required: true, schema: { $ref: '#/components/schemas/CrmContactKind' } }
+        - { name: contactId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [channel]
+              properties:
+                channel: { type: string, enum: [whatsapp, email] }
+      responses:
+        '204': { description: Noté }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+
 components:
   securitySchemes:
     session:
@@ -1709,6 +1861,7 @@ components:
         provider: { $ref: '#/components/schemas/PaymentProviderId' }
         phone: { type: string, maxLength: 40, description: "Numéro utilisé pour le paiement et les rappels de renouvellement." }
         idempotencyKey: { type: string, maxLength: 64 }
+        promoCode: { type: string, maxLength: 24, description: "Code promo admin (D59). Invalide → 404/409, jamais appliqué en silence." }
     SubscriptionCheckoutResponse:
       type: object
       required: [reference, status, amountXof]
@@ -1717,6 +1870,7 @@ components:
         paymentUrl: { type: [string, 'null'] }
         status: { $ref: '#/components/schemas/OrderStatus' }
         amountXof: { type: integer, format: int64 }
+        discountXof: { type: integer, format: int64, description: "Réduction appliquée par le code promo (0 sans code)." }
     SubscriptionPaymentView:
       type: object
       required: [reference, status, plan, amountXof]
@@ -1994,6 +2148,81 @@ components:
       properties:
         rateBps: { type: integer, minimum: 2000, maximum: 6000 }
         expiresAt: { type: string, format: date-time }
+
+    # Codes promo, prospects & CRM (D59–D63)
+    PromoQuote:
+      type: object
+      required: [code, percentOff, plan, priceXof, discountXof, finalPriceXof]
+      properties:
+        code: { type: string }
+        percentOff: { type: integer, minimum: 1, maximum: 100 }
+        plan: { $ref: '#/components/schemas/Plan' }
+        priceXof: { $ref: '#/components/schemas/Money' }
+        discountXof: { $ref: '#/components/schemas/Money' }
+        finalPriceXof: { $ref: '#/components/schemas/Money' }
+    PromoCodeInput:
+      type: object
+      required: [code, percentOff, maxUses]
+      properties:
+        code: { type: string, pattern: '^[A-Za-z0-9_-]{3,24}$' }
+        percentOff: { type: integer, minimum: 1, maximum: 100 }
+        maxUses: { type: integer, minimum: 1, maximum: 100000 }
+        validUntil: { type: [string, 'null'], format: date-time }
+    AdminPromoCode:
+      type: object
+      required: [id, code, percentOff, maxUses, usesCount, active, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string }
+        percentOff: { type: integer }
+        maxUses: { type: integer }
+        usesCount: { type: integer }
+        validUntil: { type: [string, 'null'], format: date-time }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    ProspectInput:
+      type: object
+      required: [consent]
+      properties:
+        name: { type: string, maxLength: 60 }
+        email: { type: string, maxLength: 254 }
+        phone: { type: string, maxLength: 40 }
+        consent: { type: boolean, const: true }
+        website: { type: string, maxLength: 200, description: "Piège à robots : doit rester vide." }
+    CrmSegment:
+      type: string
+      enum: [prospects, never_subscribed, expiring_soon, expired, active]
+    CrmContactKind:
+      type: string
+      enum: [creator, prospect]
+    CrmContact:
+      type: object
+      required: [kind, id, name, createdAt, optedOut]
+      properties:
+        kind: { $ref: '#/components/schemas/CrmContactKind' }
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: [string, 'null'] }
+        phone: { type: [string, 'null'] }
+        handle: { type: [string, 'null'] }
+        subscriptionStatus: { oneOf: [ { $ref: '#/components/schemas/SubscriptionStatusEnum' }, { type: 'null' } ] }
+        subscriptionExpiresAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: string, format: date-time }
+        lastContactedAt: { type: [string, 'null'], format: date-time }
+        optedOut: { type: boolean, description: "Désinscrit : ni email ni WhatsApp." }
+    CrmEmailRequest:
+      type: object
+      required: [segment, subject, body]
+      properties:
+        segment: { $ref: '#/components/schemas/CrmSegment' }
+        subject: { type: string, minLength: 1, maxLength: 150 }
+        body: { type: string, minLength: 1, maxLength: 5000 }
+    CrmEmailResult:
+      type: object
+      required: [sent, skipped]
+      properties:
+        sent: { type: integer }
+        skipped: { type: integer, description: "Sans email ou désinscrits." }
 
 security:
   - session: []

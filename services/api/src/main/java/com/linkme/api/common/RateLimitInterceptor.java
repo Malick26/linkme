@@ -34,6 +34,8 @@ public class RateLimitInterceptor implements HandlerInterceptor {
                 new Rule("uploads", "POST", "^/api/me/uploads/(local|complete|sign)(-audio)?$", l.uploadsPerMinute(), 60_000),
                 // retraits : action sensible sur de l'argent ; recherche de code : empêche l'énumération des codes
                 new Rule("withdrawals", "POST", "^/api/me/wallet/withdrawals$", l.withdrawalsPerHour(), 3_600_000),
+                // prospects et désinscriptions : formulaires publics sans session, même plafond que le contact
+                new Rule("prospects", "POST", "^/api/public/(prospects|unsubscribe)$", l.contactPer10Minutes(), 600_000),
                 new Rule("referral-lookup", "GET", "^/api/auth/referral-codes/[^/]+$", l.referralLookupsPerMinute(), 60_000));
     }
 

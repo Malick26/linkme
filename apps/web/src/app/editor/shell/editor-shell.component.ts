@@ -120,7 +120,7 @@ export class EditorShellComponent {
     { path: '/app/analytics', icon: 'chart-column', label: 'nav.analytics' },
     { path: '/app/settings', icon: 'settings', label: 'nav.settings' },
   ];
-  private readonly adminItem: NavItem = { path: '/app/admin/retraits', icon: 'shield-check', label: 'nav.admin' };
+  private readonly adminItem: NavItem = { path: '/app/admin', icon: 'shield-check', label: 'nav.admin' };
   /** L'entrée admin n'apparaît que pour les comptes admin (D56) ; le serveur reste seul juge (403 sinon). */
   protected readonly navItems = computed(() => (this.auth.me()?.admin ? [...this.nav, this.adminItem] : this.nav));
   protected readonly mainNav = this.nav.filter((n) => n.main);

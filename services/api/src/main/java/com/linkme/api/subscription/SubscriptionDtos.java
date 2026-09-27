@@ -17,9 +17,10 @@ public final class SubscriptionDtos {
             @NotBlank @Pattern(regexp = "standard|boutique") String plan,
             String provider,
             @NotBlank @Size(max = 40) String phone,
-            @Size(max = 64) String idempotencyKey) {}
+            @Size(max = 64) String idempotencyKey,
+            @Size(max = 24) String promoCode) {}
 
-    public record SubscriptionCheckoutResponse(String reference, String paymentUrl, SubscriptionPaymentStatus status, long amountXof) {}
+    public record SubscriptionCheckoutResponse(String reference, String paymentUrl, SubscriptionPaymentStatus status, long amountXof, long discountXof) {}
 
     public record SubscriptionPaymentView(String reference, SubscriptionPaymentStatus status, String plan, long amountXof, Instant paidAt) {}
 }

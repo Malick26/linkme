@@ -2,9 +2,10 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import type {
-  AdminReferrer, AdminWithdrawal, AnalyticsSummary, AssetKind, CollabRequest, ReferralCodeInfo, ReferralOverview, Wallet, Withdrawal,
+  AdminPromoCode, AdminReferrer, AdminWithdrawal, CrmContact, CrmContactKind, CrmEmailRequest, CrmEmailResult, CrmSegment, PromoCodeInput, PromoQuote,
+  ProspectInput, AnalyticsSummary, AssetKind, CollabRequest, ReferralCodeInfo, ReferralOverview, Wallet, Withdrawal,
   WithdrawalDecision, WithdrawalRequest, WithdrawalStatus, Audio, Block, BlockInput, BlockItem, BlockItemInput, ContactMessagePage, Earnings, Image, LoginRequest, Me,
-  OrderPage, PlanCatalogEntry, Product, ProductInput, Profile, ProfileStats, ProfileStatsInput, ProfileUpdate, PublicPage, RegisterRequest,
+  OrderPage, Plan, PlanCatalogEntry, Product, ProductInput, Profile, ProfileStats, ProfileStatsInput, ProfileUpdate, PublicPage, RegisterRequest,
   SocialAccount, SocialAccountInput, SubscriptionCheckoutRequest, SubscriptionCheckoutResponse, SubscriptionPaymentView, SubscriptionStatus,
   ThemeConfig, ThemePreset, ThemeState, UploadSignature,
 } from './types';
@@ -110,4 +111,19 @@ export class MeApi {
   adminReferrer(handle: string): Observable<AdminReferrer> { return this.http.get<AdminReferrer>(`/api/admin/referrers/${encodeURIComponent(handle)}`); }
   adminSetCollab(handle: string, body: CollabRequest): Observable<AdminReferrer> { return this.http.put<AdminReferrer>(`/api/admin/referrers/${encodeURIComponent(handle)}/collab`, body); }
   adminEndCollab(handle: string): Observable<AdminReferrer> { return this.http.delete<AdminReferrer>(`/api/admin/referrers/${encodeURIComponent(handle)}/collab`); }
+
+  // codes promo (D59)
+  quotePromo(code: string, plan: Plan): Observable<PromoQuote> { return this.http.get<PromoQuote>('/api/me/subscription/promo', { params: { code, plan } }); }
+  adminPromoCodes(): Observable<AdminPromoCode[]> { return this.http.get<AdminPromoCode[]>('/api/admin/promo-codes'); }
+  adminCreatePromoCode(body: PromoCodeInput): Observable<AdminPromoCode> { return this.http.post<AdminPromoCode>('/api/admin/promo-codes', body); }
+  adminDeactivatePromoCode(id: string): Observable<AdminPromoCode> { return this.http.post<AdminPromoCode>(`/api/admin/promo-codes/${id}/deactivate`, {}); }
+
+  // prospects & CRM (D60–D63)
+  joinProspects(body: ProspectInput): Observable<void> { return this.http.post<void>('/api/public/prospects', body); }
+  unsubscribe(token: string): Observable<void> { return this.http.post<void>('/api/public/unsubscribe', { token }); }
+  adminCrmContacts(segment: CrmSegment): Observable<CrmContact[]> { return this.http.get<CrmContact[]>('/api/admin/crm/contacts', { params: { segment } }); }
+  adminCrmEmail(body: CrmEmailRequest): Observable<CrmEmailResult> { return this.http.post<CrmEmailResult>('/api/admin/crm/emails', body); }
+  adminCrmLog(kind: CrmContactKind, id: string, channel: 'whatsapp' | 'email'): Observable<void> {
+    return this.http.post<void>(`/api/admin/crm/contacts/${kind}/${id}/log`, { channel });
+  }
 }

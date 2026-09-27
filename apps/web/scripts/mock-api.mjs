@@ -23,7 +23,8 @@ const HEX = /^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$/;
 
 // ───────────── état
 const db = { users: new Map(), sessions: new Map(), assets: new Map(), orders: new Map(), events: new Set(), messages: [], analytics: [],
-  subPayments: new Map(), referralCodes: new Map(), earnings: [], wallet: [], withdrawals: new Map() };
+  subPayments: new Map(), referralCodes: new Map(), earnings: [], wallet: [], withdrawals: new Map(),
+  promos: new Map(), prospects: new Map(), crmLog: [] };
 // Abonnements & parrainage (D44–D56) — mêmes règles que le back : 20 % de chaque paiement d'abonnement du filleul
 // (ou collab ≤ 60 %), gel de REFERRAL_HOLD_DAYS jours, retrait dès 1 500 FCFA, admins = MOCK_ADMIN_EMAILS.
 // Écart assumé : le mock n'applique pas le masquage de la page publique sans abonnement (D44), pour garder les
@@ -524,15 +525,46 @@ app.get('/api/me/subscription', auth, (req, res) => {
 });
 const normPhone = (raw) => { const s = String(raw ?? '').trim(); return (s.startsWith('+') ? '+' : '') + s.replace(/\D/g, ''); };
 const phoneOk = (raw) => { const n = normPhone(raw).replace(/\D/g, '').length; return n >= 8 && n <= 15; };
+// codes promo (D59) : vérifiés au checkout, usage compté au paiement, un usage par créateur
+function resolvePromo(res, user, raw, plan) {
+  const promo = db.promos.get(String(raw ?? '').trim().toUpperCase());
+  if (!promo || !promo.active) return problem(res, 404, 'PROMO_INVALID', 'Ce code promo n’existe pas.'), null;
+  if (promo.validUntil && Date.parse(promo.validUntil) <= Date.now()) return problem(res, 409, 'PROMO_EXPIRED', 'Ce code promo a expiré.'), null;
+  if (promo.usesCount >= promo.maxUses) return problem(res, 409, 'PROMO_EXHAUSTED', 'Ce code promo a atteint son nombre d’utilisations.'), null;
+  if ([...db.subPayments.values()].some((x) => x.creatorId === user.id && x.promoId === promo.id && ['PENDING', 'PAID'].includes(x.status)))
+    return problem(res, 409, 'PROMO_ALREADY_USED', 'Tu as déjà utilisé ce code promo.'), null;
+  return { promo, discount: Math.floor((PRICES[plan] * promo.percentOff) / 100) };
+}
+app.get('/api/me/subscription/promo', auth, (req, res) => {
+  const plan = req.query.plan;
+  if (!['standard', 'boutique'].includes(plan)) return bad(res, 'plan', 'Plan inconnu.');
+  const r = resolvePromo(res, req.user, req.query.code, plan);
+  if (!r) return;
+  res.json({ code: r.promo.code, percentOff: r.promo.percentOff, plan, priceXof: PRICES[plan], discountXof: r.discount, finalPriceXof: PRICES[plan] - r.discount });
+});
+function activateSubscription(p) {
+  const u = db.users.get(p.creatorId);
+  p.status = 'PAID';
+  p.paidAt = now();
+  const from = u.subscriptionStatus === 'active' && Date.parse(u.subscriptionExpiresAt) > Date.now() ? Date.parse(u.subscriptionExpiresAt) : Date.now();
+  Object.assign(u, { plan: p.plan, subscriptionStatus: 'active', subscriptionExpiresAt: new Date(from + PERIOD_DAYS * 86400000).toISOString() });
+  if (p.promoId) [...db.promos.values()].find((x) => x.id === p.promoId).usesCount++;
+  if (p.amountXof > 0) creditReferrer(p);
+}
 app.post('/api/me/subscription/checkout', auth, (req, res) => {
-  const { plan, phone } = req.body ?? {};
+  const { plan, phone, promoCode } = req.body ?? {};
   if (!['standard', 'boutique'].includes(plan)) return bad(res, 'plan', 'Plan inconnu.');
   if (!phoneOk(phone)) return bad(res, 'phone', 'Numéro de téléphone invalide.');
+  let applied = null;
+  if (promoCode) { applied = resolvePromo(res, req.user, promoCode, plan); if (!applied) return; }
   req.user.phone ??= normPhone(phone);
   const reference = 'SB-' + randomCode(12);
-  const p = { id: randomUUID(), reference, creatorId: req.user.id, plan, amountXof: PRICES[plan], status: 'PENDING', payerPhone: normPhone(phone), paidAt: null };
+  const discount = applied?.discount ?? 0;
+  const p = { id: randomUUID(), reference, creatorId: req.user.id, plan, amountXof: PRICES[plan] - discount, discountXof: discount, promoId: applied?.promo.id ?? null,
+    status: 'PENDING', payerPhone: normPhone(phone), paidAt: null };
   db.subPayments.set(reference, p);
-  res.json({ reference, paymentUrl: `/api/payments/mock/subscription/${reference}`, status: 'PENDING', amountXof: p.amountXof });
+  if (p.amountXof === 0) { activateSubscription(p); return res.json({ reference, status: 'PAID', amountXof: 0, discountXof: discount }); }
+  res.json({ reference, paymentUrl: `/api/payments/mock/subscription/${reference}`, status: 'PENDING', amountXof: p.amountXof, discountXof: discount });
 });
 app.get('/api/me/subscription/payments/:reference', auth, (req, res) => {
   const p = db.subPayments.get(req.params.reference);
@@ -568,14 +600,9 @@ app.post('/api/payments/mock/subscription/:reference/complete', (req, res) => {
   const p = db.subPayments.get(req.params.reference);
   if (!p) return problem(res, 404, 'NOT_FOUND', 'Élément introuvable.');
   if (p.status === 'PENDING') {
-    p.status = { success: 'PAID', failure: 'FAILED', cancel: 'CANCELED' }[req.query.outcome] ?? 'FAILED';
-    if (p.status === 'PAID') {
-      const u = db.users.get(p.creatorId);
-      p.paidAt = now();
-      const from = u.subscriptionStatus === 'active' && Date.parse(u.subscriptionExpiresAt) > Date.now() ? Date.parse(u.subscriptionExpiresAt) : Date.now();
-      Object.assign(u, { plan: p.plan, subscriptionStatus: 'active', subscriptionExpiresAt: new Date(from + PERIOD_DAYS * 86400000).toISOString() });
-      creditReferrer(p);
-    }
+    const outcome = { success: 'PAID', failure: 'FAILED', cancel: 'CANCELED' }[req.query.outcome] ?? 'FAILED';
+    if (outcome === 'PAID') activateSubscription(p);
+    else p.status = outcome;
   }
   res.redirect(303, `${BASE}/app/abonnement/${p.reference}`);
 });
@@ -702,6 +729,92 @@ app.delete('/api/admin/referrers/:handle/collab', admin, (req, res) => {
   if (!u) return problem(res, 404, 'NOT_FOUND', 'Élément introuvable.');
   u.collab = null;
   res.json(adminReferrer(u));
+});
+
+// ───────────── Codes promo admin (D59)
+const promoDto = (p) => ({ id: p.id, code: p.code, percentOff: p.percentOff, maxUses: p.maxUses, usesCount: p.usesCount, ...(p.validUntil ? { validUntil: p.validUntil } : {}), active: p.active, createdAt: p.createdAt });
+app.get('/api/admin/promo-codes', admin, (_req, res) => res.json([...db.promos.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map(promoDto)));
+app.post('/api/admin/promo-codes', admin, (req, res) => {
+  const { code, percentOff, maxUses, validUntil } = req.body ?? {};
+  if (!/^[A-Za-z0-9_-]{3,24}$/.test(code ?? '')) return bad(res, 'code', '3 à 24 caractères : lettres, chiffres, - ou _');
+  if (!Number.isInteger(percentOff) || percentOff < 1 || percentOff > 100) return bad(res, 'percentOff', 'Entre 1 et 100 %.');
+  if (!Number.isInteger(maxUses) || maxUses < 1 || maxUses > 100000) return bad(res, 'maxUses', 'Au moins 1 utilisation.');
+  if (validUntil && !(Date.parse(validUntil) > Date.now())) return bad(res, 'validUntil', 'La date de fin doit être dans le futur.');
+  const c = code.toUpperCase();
+  if (db.promos.has(c)) return problem(res, 409, 'PROMO_CODE_TAKEN', 'Ce code existe déjà.');
+  const p = { id: randomUUID(), code: c, percentOff, maxUses, usesCount: 0, validUntil: validUntil ?? null, active: true, createdAt: now() };
+  db.promos.set(c, p);
+  res.status(201).json(promoDto(p));
+});
+app.post('/api/admin/promo-codes/:id/deactivate', admin, (req, res) => {
+  const p = [...db.promos.values()].find((x) => x.id === req.params.id);
+  if (!p) return problem(res, 404, 'NOT_FOUND', 'Élément introuvable.');
+  p.active = false;
+  res.json(promoDto(p));
+});
+
+// ───────────── Prospects & CRM (D60–D63)
+app.post('/api/public/prospects', (req, res) => {
+  const { name, email, phone, consent, website } = req.body ?? {};
+  if (consent !== true) return bad(res, 'consent', 'Obligatoire.');
+  if (website) return res.status(202).end();
+  const em = String(email ?? '').trim().toLowerCase() || null;
+  if (em && !/^\S+@\S+\.\S+$/.test(em)) return bad(res, 'email', 'Adresse email invalide.');
+  const ph = phone ? normPhone(phone) : null;
+  if (phone && !phoneOk(phone)) return bad(res, 'phone', 'Numéro de téléphone invalide.');
+  if (!em && !ph) return bad(res, 'email', 'Laisse au moins un email ou un numéro WhatsApp.');
+  const known = [...db.prospects.values()].find((x) => (em && x.email === em) || (ph && x.phone === ph));
+  if (known) Object.assign(known, { name: known.name ?? name ?? null, email: known.email ?? em, phone: known.phone ?? ph, unsubscribedAt: null });
+  else { const id = randomUUID(); db.prospects.set(id, { id, name: name?.trim() || null, email: em, phone: ph, token: randomBytes(24).toString('hex'), unsubscribedAt: null, createdAt: now() }); }
+  res.status(202).end();
+});
+app.post('/api/public/unsubscribe', (req, res) => {
+  const t = String(req.body?.token ?? '');
+  const p = [...db.prospects.values()].find((x) => x.token === t);
+  if (p) p.unsubscribedAt ??= now();
+  const u = [...db.users.values()].find((x) => x.unsubscribeToken === t);
+  if (u) u.optedOutAt ??= now();
+  res.status(204).end();
+});
+const SEGMENTS = ['prospects', 'never_subscribed', 'expiring_soon', 'expired', 'active'];
+function crmContacts(segment) {
+  const last = (kind, id) => db.crmLog.filter((l) => l.kind === kind && l.id === id).map((l) => l.at).sort().at(-1) ?? null;
+  if (segment === 'prospects') return [...db.prospects.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((p) => ({
+    kind: 'prospect', id: p.id, name: p.name ?? '', email: p.email, phone: p.phone, handle: null, subscriptionStatus: null, subscriptionExpiresAt: null,
+    createdAt: p.createdAt, lastContactedAt: last('prospect', p.id), optedOut: !!p.unsubscribedAt }));
+  const soon = Date.now() + 7 * 86400000;
+  const keep = { never_subscribed: (u) => u.subscriptionStatus === 'inactive', expired: (u) => u.subscriptionStatus === 'expired', active: (u) => u.subscriptionStatus === 'active',
+    expiring_soon: (u) => u.subscriptionStatus === 'active' && Date.parse(u.subscriptionExpiresAt) < soon }[segment];
+  return [...db.users.values()].filter(keep).map((u) => ({ kind: 'creator', id: u.id, name: u.profile.displayName, email: u.email, phone: u.phone, handle: u.handle,
+    subscriptionStatus: u.subscriptionStatus, subscriptionExpiresAt: u.subscriptionExpiresAt, createdAt: u.createdAt, lastContactedAt: last('creator', u.id), optedOut: !!u.optedOutAt }));
+}
+app.get('/api/admin/crm/contacts', admin, (req, res) => {
+  if (!SEGMENTS.includes(req.query.segment)) return bad(res, 'segment', 'Segment inconnu.');
+  res.json(crmContacts(req.query.segment));
+});
+app.post('/api/admin/crm/emails', admin, (req, res) => {
+  const { segment, subject, body } = req.body ?? {};
+  if (!SEGMENTS.includes(segment)) return bad(res, 'segment', 'Segment inconnu.');
+  if (!subject?.trim() || !body?.trim()) return bad(res, 'body', 'Obligatoire.');
+  let sent = 0, skipped = 0;
+  for (const c of crmContacts(segment)) {
+    if (!c.email || c.optedOut) { skipped++; continue; }
+    if (c.kind === 'creator') db.users.get(c.id).unsubscribeToken ??= randomBytes(24).toString('hex');
+    db.crmLog.push({ kind: c.kind, id: c.id, channel: 'email', at: now() });
+    sent++;
+  }
+  res.json({ sent, skipped });
+});
+app.post('/api/admin/crm/contacts/:kind/:id/log', admin, (req, res) => {
+  const exists = req.params.kind === 'prospect' ? db.prospects.has(req.params.id) : req.params.kind === 'creator' && db.users.has(req.params.id);
+  if (!exists) return problem(res, 404, 'NOT_FOUND', 'Élément introuvable.');
+  db.crmLog.push({ kind: req.params.kind, id: req.params.id, channel: req.body?.channel === 'email' ? 'email' : 'whatsapp', at: now() });
+  res.status(204).end();
+});
+// outil de test (mock uniquement) : jeton de désinscription d'un prospect, pour exercer le lien de l'email
+app.get('/api/_mock/prospect-token', (req, res) => {
+  const p = [...db.prospects.values()].find((x) => x.email === String(req.query.email ?? '').toLowerCase());
+  p ? res.json({ token: p.token }) : problem(res, 404, 'NOT_FOUND', 'Élément introuvable.');
 });
 
 app.use((req, res) => problem(res, 404, 'NOT_FOUND', 'Élément introuvable.'));

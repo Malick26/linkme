@@ -1,4 +1,5 @@
 import type { frEditor } from './fr-editor';
+import type { frSite } from './fr-site';
 
 /** Dictionnaire français (langue par défaut). Toute clé ajoutée ici doit exister dans en.ts (vérifié à la compilation). */
 export const fr = {
@@ -201,6 +202,7 @@ export const fr = {
   'site.checkout.note': 'Reçu envoyé automatiquement',
   'site.footer.legal': 'Mentions légales',
   'site.footer.privacy': 'Confidentialité',
+  'site.footer.join': 'Rester informé·e',
   'site.footer.terms': 'Conditions d’utilisation',
 
   // Éditeur — authentification
@@ -540,5 +542,5 @@ export const fr = {
 } as const;
 
 /** Clés du back-office chargées avec l'éditeur (hors bundle initial de la page publique, règle 3). */
-export type I18nKey = keyof typeof fr | keyof typeof frEditor;
+export type I18nKey = keyof typeof fr | keyof typeof frEditor | keyof typeof frSite;
 export type Dict = Record<I18nKey, string>;

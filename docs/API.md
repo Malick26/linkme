@@ -25,6 +25,12 @@ Documentation interactive en développement : `http://localhost:8080/v3/api-docs
 
 | Méthode | Chemin | operationId | Accès | Description |
 |---|---|---|---|---|
+| `GET` | `/api/admin/crm/contacts` | `adminListCrmContacts` | session | Contacts du CRM par segment (prospects, jamais abonnés, échéance proche, expirés, actifs) |
+| `POST` | `/api/admin/crm/contacts/{kind}/{contactId}/log` | `adminLogCrmContact` | session | Noter qu'un contact a été relancé (ex. message WhatsApp ouvert depuis le CRM) |
+| `POST` | `/api/admin/crm/emails` | `adminSendCrmEmail` | session | Envoyer un email à tout un segment (hors désinscrits), {nom} remplacé par le nom du contact |
+| `GET` | `/api/admin/promo-codes` | `adminListPromoCodes` | session | Codes promo (admin) |
+| `POST` | `/api/admin/promo-codes` | `adminCreatePromoCode` | session | Créer un code promo (% de réduction, nombre d'usages, échéance facultative) |
+| `POST` | `/api/admin/promo-codes/{promoId}/deactivate` | `adminDeactivatePromoCode` | session | Désactiver un code promo |
 | `GET` | `/api/admin/referrers/{handle}` | `adminGetReferrer` | session | Fiche parrain d'un créateur (admin) |
 | `DELETE` | `/api/admin/referrers/{handle}/collab` | `adminEndCollab` | session | Mettre fin à la collab (retour au taux de base 20 %) |
 | `PUT` | `/api/admin/referrers/{handle}/collab` | `adminSetCollab` | session | Accorder un taux collab négocié (≤ 60 %) jusqu'à une date d'expiration |
@@ -64,6 +70,13 @@ Documentation interactive en développement : `http://localhost:8080/v3/api-docs
 | `PUT` | `/api/me/blocks/{blockId}/items/order` | `reorderBlockItems` | session | Réordonner les éléments |
 | `DELETE` | `/api/me/blocks/{blockId}/items/{itemId}` | `deleteBlockItem` | session | Supprimer un élément |
 | `PUT` | `/api/me/blocks/{blockId}/items/{itemId}` | `updateBlockItem` | session | Modifier un élément |
+
+## crm
+
+| Méthode | Chemin | operationId | Accès | Description |
+|---|---|---|---|---|
+| `POST` | `/api/public/prospects` | `joinProspectList` | public | S'inscrire pour recevoir les nouveautés (page /rejoindre) — réponse identique qu'on soit déjà inscrit ou non |
+| `POST` | `/api/public/unsubscribe` | `unsubscribe` | public | Se désinscrire des messages (lien présent dans chaque email) — réponse identique que le jeton existe ou non |
 
 ## payments
 
@@ -125,6 +138,7 @@ Documentation interactive en développement : `http://localhost:8080/v3/api-docs
 | `GET` | `/api/me/subscription` | `getMySubscription` | session | Statut de mon abonnement |
 | `POST` | `/api/me/subscription/checkout` | `checkoutSubscription` | session | Payer une période d'abonnement (30 jours) — prolonge l'échéance en cours |
 | `GET` | `/api/me/subscription/payments/{reference}` | `getSubscriptionPayment` | session | Statut d'un paiement d'abonnement (page de retour du fournisseur) |
+| `GET` | `/api/me/subscription/promo` | `quotePromoCode` | session | Prix d'un plan avec un code promo (aperçu avant paiement) |
 | `GET` | `/api/payments/mock/subscription/{reference}` | `mockSubscriptionPaymentPage` | public | Page de paiement d'abonnement simulée (profil dev/test uniquement) |
 | `POST` | `/api/payments/mock/subscription/{reference}/complete` | `mockSubscriptionPaymentComplete` | public | Simuler l'issue d'un paiement d'abonnement (mock) |
 | `GET` | `/api/subscriptions/plans` | `getSubscriptionPlans` | public | Catalogue des deux plans payants (public — sert la page tarifs) |
@@ -151,4 +165,4 @@ Documentation interactive en développement : `http://localhost:8080/v3/api-docs
 
 ---
 
-70 opérations. Généré depuis le contrat le 2026-09-27 (`python3 infra/scripts/gen_api_doc.py`).
+79 opérations. Généré depuis le contrat le 2026-09-27 (`python3 infra/scripts/gen_api_doc.py`).

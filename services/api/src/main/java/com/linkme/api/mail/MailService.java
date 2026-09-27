@@ -31,6 +31,11 @@ public class MailService {
         }
     }
 
+    /** Faux en production sans SMTP : les envois de masse (CRM) le signalent à l'admin au lieu d'échouer en silence. */
+    public boolean available() {
+        return smtpConfigured || devProfile;
+    }
+
     @Async
     public void send(String to, String subject, String body) {
         if (to == null || to.isBlank()) return;

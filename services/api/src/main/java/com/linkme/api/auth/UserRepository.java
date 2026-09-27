@@ -9,4 +9,6 @@ import org.springframework.data.repository.query.Param;
 public interface UserRepository extends JpaRepository<User, UUID> {
     @Query("select u from User u where lower(u.email) = lower(:email) and u.deletedAt is null")
     Optional<User> findActiveByEmail(@Param("email") String email);
+
+    Optional<User> findByUnsubscribeToken(String unsubscribeToken);
 }

@@ -24,6 +24,11 @@ public interface SubscriptionPaymentRepository extends JpaRepository<Subscriptio
 
     List<SubscriptionPayment> findByCreatorId(UUID creatorId);
 
+    /** Un créateur n'utilise un même code promo qu'une fois (paiement en attente ou réussi, D59). */
+    @Query("select count(p) > 0 from SubscriptionPayment p where p.creatorId = :creatorId and p.promoCodeId = :promoId and p.status in ("
+            + "com.linkme.api.subscription.SubscriptionPaymentStatus.PENDING, com.linkme.api.subscription.SubscriptionPaymentStatus.PAID)")
+    boolean existsActiveUseOfPromo(@Param("creatorId") UUID creatorId, @Param("promoId") UUID promoId);
+
     /** Anti-fraude (D54) : ce numéro a-t-il déjà servi à payer l'abonnement de ce créateur ? */
     boolean existsByCreatorIdAndPayerPhone(UUID creatorId, String payerPhone);
 

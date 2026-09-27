@@ -6,8 +6,8 @@ export type Lang = 'fr' | 'en';
 const FR: Partial<Dict> = { ...fr };
 const DICTS: Partial<Record<Lang, Partial<Dict>>> = { fr: FR };
 
-/** Appelé une fois par le chunk différé de l'éditeur (`editor.routes.ts`). */
-export function registerEditorDictionary(extra: Partial<Dict>): void {
+/** Appelé une fois par un chunk différé (éditeur, pages /rejoindre et /desinscription) pour ajouter ses textes. */
+export function registerDictionary(extra: Partial<Dict>): void {
   Object.assign(FR, extra);
 }
 

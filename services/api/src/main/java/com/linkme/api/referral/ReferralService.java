@@ -149,6 +149,7 @@ public class ReferralService {
     public boolean credit(UUID subscriptionPaymentId) {
         SubscriptionPayment payment = subscriptionPayments.findById(subscriptionPaymentId).orElse(null);
         if (payment == null || payment.getStatus() != SubscriptionPaymentStatus.PAID || payment.getPaidAt() == null) return false;
+        if (payment.getAmountXof() <= 0) return false; // abonnement offert (code promo 100 %) : rien à partager
         Referral referral = referrals.findById(payment.getCreatorId()).orElse(null);
         if (referral == null || earnings.existsBySubscriptionPaymentId(payment.getId())) return false;
         User referrer = users.findById(referral.getReferrerId()).orElse(null);

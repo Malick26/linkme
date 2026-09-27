@@ -3,6 +3,8 @@ import { RenderMode, ServerRoute } from '@angular/ssr';
 export const serverRoutes: ServerRoute[] = [
   { path: '', renderMode: RenderMode.Prerender },
   { path: 'legal/**', renderMode: RenderMode.Prerender },
+  { path: 'rejoindre', renderMode: RenderMode.Prerender },
+  { path: 'desinscription', renderMode: RenderMode.Client },
   // back-office : rendu client (données privées, pas de SEO)
   { path: 'app/**', renderMode: RenderMode.Client },
   { path: 'login', renderMode: RenderMode.Client },

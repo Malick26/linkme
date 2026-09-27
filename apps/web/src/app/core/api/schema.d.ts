@@ -1027,6 +1027,143 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/me/subscription/promo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Prix d'un plan avec un code promo (aperçu avant paiement) */
+        get: operations["quotePromoCode"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/promo-codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Codes promo (admin) */
+        get: operations["adminListPromoCodes"];
+        put?: never;
+        /** Créer un code promo (% de réduction, nombre d'usages, échéance facultative) */
+        post: operations["adminCreatePromoCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/promo-codes/{promoId}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Désactiver un code promo */
+        post: operations["adminDeactivatePromoCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/prospects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** S'inscrire pour recevoir les nouveautés (page /rejoindre) — réponse identique qu'on soit déjà inscrit ou non */
+        post: operations["joinProspectList"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/unsubscribe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Se désinscrire des messages (lien présent dans chaque email) — réponse identique que le jeton existe ou non */
+        post: operations["unsubscribe"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/crm/contacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Contacts du CRM par segment (prospects, jamais abonnés, échéance proche, expirés, actifs) */
+        get: operations["adminListCrmContacts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/crm/emails": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Envoyer un email à tout un segment (hors désinscrits), {nom} remplacé par le nom du contact */
+        post: operations["adminSendCrmEmail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/crm/contacts/{kind}/{contactId}/log": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Noter qu'un contact a été relancé (ex. message WhatsApp ouvert depuis le CRM) */
+        post: operations["adminLogCrmContact"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1488,6 +1625,8 @@ export interface components {
             /** @description Numéro utilisé pour le paiement et les rappels de renouvellement. */
             phone: string;
             idempotencyKey?: string;
+            /** @description Code promo admin (D59). Invalide → 404/409, jamais appliqué en silence. */
+            promoCode?: string;
         };
         SubscriptionCheckoutResponse: {
             reference: string;
@@ -1495,6 +1634,11 @@ export interface components {
             status: components["schemas"]["OrderStatus"];
             /** Format: int64 */
             amountXof: number;
+            /**
+             * Format: int64
+             * @description Réduction appliquée par le code promo (0 sans code).
+             */
+            discountXof?: number;
         };
         SubscriptionPaymentView: {
             reference: string;
@@ -1766,6 +1910,75 @@ export interface components {
             rateBps: number;
             /** Format: date-time */
             expiresAt: string;
+        };
+        PromoQuote: {
+            code: string;
+            percentOff: number;
+            plan: components["schemas"]["Plan"];
+            priceXof: components["schemas"]["Money"];
+            discountXof: components["schemas"]["Money"];
+            finalPriceXof: components["schemas"]["Money"];
+        };
+        PromoCodeInput: {
+            code: string;
+            percentOff: number;
+            maxUses: number;
+            /** Format: date-time */
+            validUntil?: string | null;
+        };
+        AdminPromoCode: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            percentOff: number;
+            maxUses: number;
+            usesCount: number;
+            /** Format: date-time */
+            validUntil?: string | null;
+            active: boolean;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        ProspectInput: {
+            name?: string;
+            email?: string;
+            phone?: string;
+            /** @constant */
+            consent: true;
+            /** @description Piège à robots : doit rester vide. */
+            website?: string;
+        };
+        /** @enum {string} */
+        CrmSegment: "prospects" | "never_subscribed" | "expiring_soon" | "expired" | "active";
+        /** @enum {string} */
+        CrmContactKind: "creator" | "prospect";
+        CrmContact: {
+            kind: components["schemas"]["CrmContactKind"];
+            /** Format: uuid */
+            id: string;
+            name: string;
+            email?: string | null;
+            phone?: string | null;
+            handle?: string | null;
+            subscriptionStatus?: components["schemas"]["SubscriptionStatusEnum"] | null;
+            /** Format: date-time */
+            subscriptionExpiresAt?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            lastContactedAt?: string | null;
+            /** @description Désinscrit : ni email ni WhatsApp. */
+            optedOut: boolean;
+        };
+        CrmEmailRequest: {
+            segment: components["schemas"]["CrmSegment"];
+            subject: string;
+            body: string;
+        };
+        CrmEmailResult: {
+            sent: number;
+            /** @description Sans email ou désinscrits. */
+            skipped: number;
         };
     };
     responses: {
@@ -3454,6 +3667,233 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AdminReferrer"];
                 };
+            };
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    quotePromoCode: {
+        parameters: {
+            query: {
+                code: string;
+                plan: components["schemas"]["Plan"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromoQuote"];
+                };
+            };
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    adminListPromoCodes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPromoCode"][];
+                };
+            };
+            403: components["responses"]["Problem"];
+        };
+    };
+    adminCreatePromoCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromoCodeInput"];
+            };
+        };
+        responses: {
+            /** @description Créé */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPromoCode"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    adminDeactivatePromoCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                promoId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPromoCode"];
+                };
+            };
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    joinProspectList: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProspectInput"];
+            };
+        };
+        responses: {
+            /** @description Inscription enregistrée */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["Problem"];
+            429: components["responses"]["Problem"];
+        };
+    };
+    unsubscribe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    token: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Désinscrit */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["Problem"];
+            429: components["responses"]["Problem"];
+        };
+    };
+    adminListCrmContacts: {
+        parameters: {
+            query: {
+                segment: components["schemas"]["CrmSegment"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrmContact"][];
+                };
+            };
+            403: components["responses"]["Problem"];
+        };
+    };
+    adminSendCrmEmail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CrmEmailRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrmEmailResult"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    adminLogCrmContact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: components["schemas"]["CrmContactKind"];
+                contactId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    channel: "whatsapp" | "email";
+                };
+            };
+        };
+        responses: {
+            /** @description Noté */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             403: components["responses"]["Problem"];
             404: components["responses"]["Problem"];

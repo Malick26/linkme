@@ -65,3 +65,13 @@ export type WithdrawalDecision = S['WithdrawalDecision'];
 export type AdminWithdrawal = S['AdminWithdrawal'];
 export type AdminReferrer = S['AdminReferrer'];
 export type CollabRequest = S['CollabRequest'];
+// codes promo, prospects & CRM (D59–D63)
+export type PromoQuote = S['PromoQuote'];
+export type PromoCodeInput = S['PromoCodeInput'];
+export type AdminPromoCode = S['AdminPromoCode'];
+export type ProspectInput = S['ProspectInput'];
+export type CrmSegment = S['CrmSegment'];
+export type CrmContact = S['CrmContact'];
+export type CrmContactKind = S['CrmContactKind'];
+export type CrmEmailRequest = S['CrmEmailRequest'];
+export type CrmEmailResult = S['CrmEmailResult'];

@@ -10,6 +10,7 @@ import { toProblem } from '../../core/http/problem';
 import type { I18nKey } from '../../core/i18n/fr';
 import { I18n, TPipe } from '../../core/i18n/i18n.service';
 import { formatDate, formatRate } from '../referral/rates';
+import { AdminTabsComponent } from './admin-tabs.component';
 
 /**
  * Espace admin minimal (D56) : file des retraits à envoyer à la main (numéro complet + signaux anti-fraude),
@@ -18,9 +19,10 @@ import { formatDate, formatRate } from '../referral/rates';
 @Component({
   selector: 'app-admin-withdrawals',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TPipe, IconComponent],
+  imports: [TPipe, IconComponent, AdminTabsComponent],
   template: `
     <div class="ed-page ed-stack">
+      <app-admin-tabs />
       <h1>{{ 'admin.title' | t }}</h1>
       <div class="ed-seg" role="group">
         <button type="button" [attr.aria-pressed]="filter() === 'REQUESTED'" (click)="filter.set('REQUESTED')">{{ 'admin.filter.todo' | t }}</button>

@@ -32,6 +32,13 @@ public class User {
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
+    /** Désinscription des messages du CRM (D62) et jeton du lien de désinscription, créé au premier email envoyé. */
+    @Column(name = "marketing_opt_out_at")
+    private Instant marketingOptOutAt;
+
+    @Column(name = "unsubscribe_token", length = 64)
+    private String unsubscribeToken;
+
     protected User() {}
 
     public User(UUID id, String email, String passwordHash, Instant now) {
@@ -48,6 +55,18 @@ public class User {
     public String getPhone() { return phone; }
     public Instant getDeletedAt() { return deletedAt; }
     public Instant getCreatedAt() { return createdAt; }
+    public Instant getMarketingOptOutAt() { return marketingOptOutAt; }
+    public String getUnsubscribeToken() { return unsubscribeToken; }
+
+    public String ensureUnsubscribeToken(java.util.function.Supplier<String> generator) {
+        if (unsubscribeToken == null) unsubscribeToken = generator.get();
+        return unsubscribeToken;
+    }
+
+    public void optOutOfMarketing(Instant now) {
+        if (marketingOptOutAt == null) marketingOptOutAt = now;
+        this.updatedAt = now;
+    }
 
     public void changePassword(String hash, Instant now) {
         this.passwordHash = hash;
