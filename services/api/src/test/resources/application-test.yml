@@ -15,6 +15,9 @@ app:
     events-per-minute: 1000
     webhooks-per-minute: 1000
     uploads-per-minute: 1000
+    withdrawals-per-hour: 1000
+    referral-lookups-per-minute: 1000
+  admin-emails: admin-it@test.sn
 server:
   servlet:
     session:

@@ -22,6 +22,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,15 +40,20 @@ public class SubscriptionService {
     private final SubscriptionPaymentRepository payments;
     private final PaymentProviderRegistry registry;
     private final AppProperties props;
+    private final ApplicationEventPublisher publisher;
     private final Clock clock;
 
+    /** Publié quand un paiement d'abonnement vient d'activer/prolonger l'abonnement (le parrainage l'écoute après commit). */
+    public record SubscriptionPaid(UUID paymentId, UUID creatorId) {}
+
     public SubscriptionService(CreatorProfileRepository profiles, UserRepository users, SubscriptionPaymentRepository payments,
-                               PaymentProviderRegistry registry, AppProperties props, Clock clock) {
+                               PaymentProviderRegistry registry, AppProperties props, ApplicationEventPublisher publisher, Clock clock) {
         this.profiles = profiles;
         this.users = users;
         this.payments = payments;
         this.registry = registry;
         this.props = props;
+        this.publisher = publisher;
         this.clock = clock;
     }
 
@@ -113,6 +119,9 @@ public class SubscriptionService {
     public void activate(SubscriptionPayment payment, Instant now) {
         CreatorProfile creator = profiles.findById(payment.getCreatorId()).orElseThrow(ApiException::notFound);
         creator.activateSubscription(payment.getPlan(), payment.getPeriodDays(), now);
+        // la commission du parrain est calculée APRÈS commit, dans sa propre transaction : un incident côté
+        // parrainage ne doit jamais empêcher l'activation d'un abonnement payé (D51)
+        publisher.publishEvent(new SubscriptionPaid(payment.getId(), payment.getCreatorId()));
     }
 
     /** Bascule quotidienne : les abonnements « active » dont l'échéance est dépassée deviennent « expired » (D46). */

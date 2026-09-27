@@ -1,5 +1,12 @@
 import { Routes } from '@angular/router';
-import { authGuard, guestGuard, onboardingDoneGuard } from '../core/auth/guards';
+import { registerEditorIcons } from '../../design-system/icons/icon-registry-editor';
+import { adminGuard, authGuard, guestGuard, onboardingDoneGuard } from '../core/auth/guards';
+import { frEditor } from '../core/i18n/fr-editor';
+import { registerEditorDictionary } from '../core/i18n/i18n.service';
+
+// textes du back-office : chargés avec ce chunk, jamais dans le bundle initial de la page publique (règle 3)
+registerEditorDictionary(frEditor);
+registerEditorIcons();
 
 /** Back-office — chargé en différé (jamais dans le bundle de la page publique). */
 export const EDITOR_ROUTES: Routes = [
@@ -23,6 +30,9 @@ export const EDITOR_ROUTES: Routes = [
       { path: 'sales', loadComponent: () => import('./sales/sales-page.component').then((m) => m.SalesPageComponent) },
       { path: 'messages', loadComponent: () => import('./messages/messages-page.component').then((m) => m.MessagesPageComponent) },
       { path: 'analytics', loadComponent: () => import('./analytics/analytics-page.component').then((m) => m.AnalyticsPageComponent) },
+      { path: 'parrainage', loadComponent: () => import('./referral/referral-page.component').then((m) => m.ReferralPageComponent) },
+      { path: 'portefeuille', loadComponent: () => import('./wallet/wallet-page.component').then((m) => m.WalletPageComponent) },
+      { path: 'admin/retraits', canActivate: [adminGuard], loadComponent: () => import('./admin/admin-withdrawals.component').then((m) => m.AdminWithdrawalsComponent) },
       { path: 'settings', loadComponent: () => import('./settings/settings-page.component').then((m) => m.SettingsPageComponent) },
     ],
   },

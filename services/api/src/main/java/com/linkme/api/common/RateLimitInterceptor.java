@@ -31,7 +31,10 @@ public class RateLimitInterceptor implements HandlerInterceptor {
                 // notifications fournisseurs : non authentifiées et append-only → plafond par IP (les rejeux légitimes
                 // des fournisseurs restent très en deçà)
                 new Rule("webhooks", "POST", "^/api/webhooks/[^/]+$", l.webhooksPerMinute(), 60_000),
-                new Rule("uploads", "POST", "^/api/me/uploads/(local|complete|sign)$", l.uploadsPerMinute(), 60_000));
+                new Rule("uploads", "POST", "^/api/me/uploads/(local|complete|sign)(-audio)?$", l.uploadsPerMinute(), 60_000),
+                // retraits : action sensible sur de l'argent ; recherche de code : empêche l'énumération des codes
+                new Rule("withdrawals", "POST", "^/api/me/wallet/withdrawals$", l.withdrawalsPerHour(), 3_600_000),
+                new Rule("referral-lookup", "GET", "^/api/auth/referral-codes/[^/]+$", l.referralLookupsPerMinute(), 60_000));
     }
 
     @Override

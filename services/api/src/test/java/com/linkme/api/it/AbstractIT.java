@@ -57,6 +57,42 @@ public abstract class AbstractIT {
         return (MockHttpSession) r.getRequest().getSession(false);
     }
 
+    /** Inscription avec un email et un code de parrainage choisis (null = sans parrain). */
+    protected MockHttpSession register(String handle, String email, String referralCode) throws Exception {
+        java.util.Map<String, Object> req = new java.util.HashMap<>(Map.of("email", email, "password", "motdepasse-solide", "handle", handle,
+                "displayName", "Créateur " + handle, "acceptTerms", true));
+        if (referralCode != null) req.put("referralCode", referralCode);
+        MvcResult r = mvc.perform(post("/api/auth/register").with(csrf()).contentType(MediaType.APPLICATION_JSON).content(json(req)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return (MockHttpSession) r.getRequest().getSession(false);
+    }
+
+    /** Session admin (email listé dans app.admin-emails du profil test) : inscrit le compte au premier appel, puis se connecte. */
+    protected MockHttpSession adminSession() throws Exception {
+        String email = "admin-it@test.sn";
+        MvcResult reg = mvc.perform(post("/api/auth/register").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of("email", email, "password", "motdepasse-admin", "handle", uniqueHandle("admin"),
+                                "displayName", "Admin", "acceptTerms", true))))
+                .andReturn();
+        if (reg.getResponse().getStatus() == 201) return (MockHttpSession) reg.getRequest().getSession(false);
+        MvcResult login = mvc.perform(post("/api/auth/login").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of("email", email, "password", "motdepasse-admin"))))
+                .andExpect(status().isOk()).andReturn();
+        return (MockHttpSession) login.getRequest().getSession(false);
+    }
+
+    /** Paie une période d'abonnement avec le numéro donné (le parrainage compare les numéros, D54). */
+    protected String paySubscription(MockHttpSession s, String plan, String phone) throws Exception {
+        JsonNode checkout = body(mvc.perform(post("/api/me/subscription/checkout").session(s).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON).content(json(Map.of("plan", plan, "phone", phone))))
+                .andExpect(status().isOk()).andReturn());
+        String reference = checkout.get("reference").asText();
+        mvc.perform(post("/api/payments/mock/subscription/" + reference + "/complete").param("outcome", "success"))
+                .andExpect(status().isSeeOther());
+        return reference;
+    }
+
     protected JsonNode getJson(String url, MockHttpSession session) throws Exception {
         return body(mvc.perform(get(url).session(session)).andExpect(status().isOk()).andReturn());
     }

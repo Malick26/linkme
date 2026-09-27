@@ -12,3 +12,4 @@ infra/.env
 .DS_Store
 .idea/
 .vscode/
+.claude-tmp/

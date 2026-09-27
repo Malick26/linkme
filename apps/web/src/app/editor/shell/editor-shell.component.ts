@@ -18,7 +18,7 @@ interface NavItem { path: string; icon: string; label: I18nKey; exact?: boolean;
       <aside class="sh__side" [attr.aria-label]="'nav.menu' | t">
         <a routerLink="/app" class="sh__logo"><lm-brand-logo /></a>
         <nav class="sh__nav">
-          @for (n of nav; track n.path) {
+          @for (n of navItems(); track n.path) {
             <a [routerLink]="n.path" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: !!n.exact }" class="sh__link">
               <lm-icon [name]="n.icon" [size]="20" /><span>{{ n.label | t }}</span>
             </a>
@@ -57,7 +57,7 @@ interface NavItem { path: string; icon: string; label: I18nKey; exact?: boolean;
       </nav>
       @if (moreOpen()) {
         <div class="sh__more" role="menu">
-          @for (n of moreNav; track n.path) {
+          @for (n of moreNav(); track n.path) {
             <a role="menuitem" [routerLink]="n.path" class="sh__link" (click)="moreOpen.set(false)"><lm-icon [name]="n.icon" [size]="20" /><span>{{ n.label | t }}</span></a>
           }
           @if (pageUrl(); as url) {
@@ -114,12 +114,17 @@ export class EditorShellComponent {
     { path: '/app/abonnement', icon: 'crown', label: 'nav.subscription' },
     { path: '/app/shop', icon: 'store', label: 'nav.shop' },
     { path: '/app/sales', icon: 'wallet', label: 'nav.sales' },
+    { path: '/app/parrainage', icon: 'gift', label: 'nav.referral' },
+    { path: '/app/portefeuille', icon: 'piggy-bank', label: 'nav.wallet' },
     { path: '/app/messages', icon: 'inbox', label: 'nav.messages' },
     { path: '/app/analytics', icon: 'chart-column', label: 'nav.analytics' },
     { path: '/app/settings', icon: 'settings', label: 'nav.settings' },
   ];
+  private readonly adminItem: NavItem = { path: '/app/admin/retraits', icon: 'shield-check', label: 'nav.admin' };
+  /** L'entrée admin n'apparaît que pour les comptes admin (D56) ; le serveur reste seul juge (403 sinon). */
+  protected readonly navItems = computed(() => (this.auth.me()?.admin ? [...this.nav, this.adminItem] : this.nav));
   protected readonly mainNav = this.nav.filter((n) => n.main);
-  protected readonly moreNav = this.nav.filter((n) => !n.main);
+  protected readonly moreNav = computed(() => this.navItems().filter((n) => !n.main));
   protected readonly pageUrl = computed(() => {
     const m = this.auth.me();
     return m?.published && m?.subscriptionStatus === 'active' ? `/${m.handle}` : null;

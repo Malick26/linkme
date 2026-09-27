@@ -14,6 +14,7 @@ import com.linkme.api.profile.CreatorProfileRepository;
 import com.linkme.api.profile.ProfileStats;
 import com.linkme.api.profile.ProfileStatsRepository;
 import com.linkme.api.profile.SocialAccountRepository;
+import com.linkme.api.referral.ReferralService;
 import com.linkme.api.shop.OrderRepository;
 import com.linkme.api.shop.ProductRepository;
 import com.linkme.api.theme.ThemeRepository;
@@ -22,6 +23,8 @@ import com.linkme.api.uploads.AssetRepository;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -45,12 +48,14 @@ public class AuthService {
     private final PasswordEncoder encoder;
     private final MailService mail;
     private final AppProperties props;
+    private final ReferralService referrals;
+    private final AdminAccess adminAccess;
     private final Clock clock;
 
     public AuthService(UserRepository users, CreatorProfileRepository profiles, ProfileStatsRepository stats, SocialAccountRepository socials,
                        BlockService blockService, BlockRepository blocks, ThemeService themes, ThemeRepository themeRepo, AssetRepository assets,
                        ProductRepository products, OrderRepository orders, PasswordResetTokenRepository resetTokens, PasswordEncoder encoder,
-                       MailService mail, AppProperties props, Clock clock) {
+                       MailService mail, AppProperties props, ReferralService referrals, AdminAccess adminAccess, Clock clock) {
         this.users = users;
         this.profiles = profiles;
         this.stats = stats;
@@ -66,6 +71,8 @@ public class AuthService {
         this.encoder = encoder;
         this.mail = mail;
         this.props = props;
+        this.referrals = referrals;
+        this.adminAccess = adminAccess;
         this.clock = clock;
     }
 
@@ -77,9 +84,16 @@ public class AuthService {
         return new HandleAvailability(h, true, null);
     }
 
-    /** Inscription : compte + profil + stats + thème Sunset + 5 blocs par défaut (onboarding en < 15 min). */
+    public boolean isAdmin(String email) {
+        return adminAccess.isAdmin(email);
+    }
+
+    /**
+     * Inscription : compte + profil + stats + thème Sunset + 5 blocs par défaut (onboarding en < 15 min), et
+     * rattachement au parrain si un code valide accompagne l'inscription (D53 — un code inconnu est ignoré).
+     */
     @Transactional
-    public User register(RegisterRequest req) {
+    public User register(RegisterRequest req, String clientIp) {
         String email = req.email().trim().toLowerCase();
         String handle = Handles.normalize(req.handle());
         if (!Handles.validFormat(handle)) throw ApiException.validation("handle", "3 à 30 caractères : lettres minuscules, chiffres, . _ -");
@@ -97,6 +111,7 @@ public class AuthService {
         stats.save(new ProfileStats(u.getId()));
         themes.getOrCreate(u.getId());
         blockService.createDefaults(u.getId());
+        referrals.attachAtSignup(u.getId(), req.referralCode(), ReferralService.signupIpHash(clientIp, LocalDate.ofInstant(now, ZoneOffset.UTC)));
         return u;
     }
 
@@ -105,7 +120,7 @@ public class AuthService {
         User u = users.findById(userId).filter(x -> x.getDeletedAt() == null).orElseThrow(() -> ApiException.unauthorized("UNAUTHORIZED", "Session expirée."));
         CreatorProfile p = profiles.findById(userId).orElseThrow(ApiException::notFound);
         return new Me(u.getId(), u.getEmail(), p.getHandle(), p.getDisplayName(), p.getPlan(), p.isPublished(), p.isOnboardingCompleted(),
-                p.getSubscriptionStatus(), p.getSubscriptionExpiresAt());
+                p.getSubscriptionStatus(), p.getSubscriptionExpiresAt(), adminAccess.isAdmin(u.getEmail()));
     }
 
     /** Réponse identique que le compte existe ou non (pas d'énumération d'emails). */

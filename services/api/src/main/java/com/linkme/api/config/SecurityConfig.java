@@ -73,6 +73,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/public/**", "/api/webhooks/**", "/api/payments/mock/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/media/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers("/api/me/**", "/api/me").authenticated()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().denyAll())
                 .exceptionHandling(e -> e
                         .authenticationEntryPoint((req, res, ex) -> writeProblem(res, mapper, HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Ta session a expiré. Reconnecte-toi."))

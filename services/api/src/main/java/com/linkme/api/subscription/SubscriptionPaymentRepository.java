@@ -23,4 +23,14 @@ public interface SubscriptionPaymentRepository extends JpaRepository<Subscriptio
     Page<SubscriptionPayment> findByCreatorIdOrderByCreatedAtDesc(UUID creatorId, Pageable pageable);
 
     List<SubscriptionPayment> findByCreatorId(UUID creatorId);
+
+    /** Anti-fraude (D54) : ce numéro a-t-il déjà servi à payer l'abonnement de ce créateur ? */
+    boolean existsByCreatorIdAndPayerPhone(UUID creatorId, String payerPhone);
+
+    /** Rattrapage (D51) : paiements PAID de filleuls sans gain de parrainage correspondant. */
+    @Query("""
+            select p.id from SubscriptionPayment p, Referral r
+            where r.refereeId = p.creatorId and p.status = :status and p.paidAt >= :since
+              and not exists (select 1 from ReferralEarning e where e.subscriptionPaymentId = p.id)""")
+    List<UUID> findPaidWithoutReferralEarning(@Param("status") SubscriptionPaymentStatus status, @Param("since") java.time.Instant since);
 }

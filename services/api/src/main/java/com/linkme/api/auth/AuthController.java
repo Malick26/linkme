@@ -8,6 +8,7 @@ import com.linkme.api.auth.AuthDtos.Me;
 import com.linkme.api.auth.AuthDtos.RegisterRequest;
 import com.linkme.api.auth.AuthDtos.ResetPasswordRequest;
 import com.linkme.api.common.ApiException;
+import com.linkme.api.common.ClientIp;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -62,8 +63,8 @@ public class AuthController {
     @PostMapping("/api/auth/register")
     @ResponseStatus(HttpStatus.CREATED)
     public Me register(@Valid @RequestBody RegisterRequest req, HttpServletRequest request, HttpServletResponse response) {
-        User u = auth.register(req);
-        AppUser principal = new AppUser(u.getId(), u.getEmail(), null);
+        User u = auth.register(req, ClientIp.of(request));
+        AppUser principal = new AppUser(u.getId(), u.getEmail(), null, auth.isAdmin(u.getEmail()));
         startSession(new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()), request, response);
         return auth.me(u.getId());
     }

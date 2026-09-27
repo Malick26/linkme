@@ -51,3 +51,17 @@ export type SubscriptionStatus = S['SubscriptionStatus'];
 export type SubscriptionCheckoutRequest = S['SubscriptionCheckoutRequest'];
 export type SubscriptionCheckoutResponse = S['SubscriptionCheckoutResponse'];
 export type SubscriptionPaymentView = S['SubscriptionPaymentView'];
+// parrainage & portefeuille (D51–D56)
+export type ReferralCodeInfo = S['ReferralCodeInfo'];
+export type ReferralOverview = S['ReferralOverview'];
+export type Referee = S['Referee'];
+export type ReferralEarning = S['ReferralEarning'];
+export type Wallet = S['Wallet'];
+export type Withdrawal = S['Withdrawal'];
+export type WithdrawalRequest = S['WithdrawalRequest'];
+export type WithdrawalMethod = S['WithdrawalMethod'];
+export type WithdrawalStatus = S['WithdrawalStatus'];
+export type WithdrawalDecision = S['WithdrawalDecision'];
+export type AdminWithdrawal = S['AdminWithdrawal'];
+export type AdminReferrer = S['AdminReferrer'];
+export type CollabRequest = S['CollabRequest'];

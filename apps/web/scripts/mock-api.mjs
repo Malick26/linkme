@@ -22,7 +22,20 @@ const RESERVED = new Set(['admin', 'api', 'app', 'login', 'register', 'forgot', 
 const HEX = /^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$/;
 
 // ───────────── état
-const db = { users: new Map(), sessions: new Map(), assets: new Map(), orders: new Map(), events: new Set(), messages: [], analytics: [] };
+const db = { users: new Map(), sessions: new Map(), assets: new Map(), orders: new Map(), events: new Set(), messages: [], analytics: [],
+  subPayments: new Map(), referralCodes: new Map(), earnings: [], wallet: [], withdrawals: new Map() };
+// Abonnements & parrainage (D44–D56) — mêmes règles que le back : 20 % de chaque paiement d'abonnement du filleul
+// (ou collab ≤ 60 %), gel de REFERRAL_HOLD_DAYS jours, retrait dès 1 500 FCFA, admins = MOCK_ADMIN_EMAILS.
+// Écart assumé : le mock n'applique pas le masquage de la page publique sans abonnement (D44), pour garder les
+// parcours e2e historiques (publication → page visible) indépendants du paiement.
+const PRICES = { standard: 1100, boutique: 2700 };
+const PERIOD_DAYS = 30;
+const BASE_RATE_BPS = 2000;
+const HOLD_DAYS = Number(process.env.MOCK_REFERRAL_HOLD_DAYS ?? 7);
+const MIN_WITHDRAWAL = 1500;
+const ADMIN_EMAILS = new Set((process.env.MOCK_ADMIN_EMAILS ?? 'admin@demo.linkme.sn').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean));
+const ALNUM = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const randomCode = (n) => Array.from(randomBytes(n), (x) => ALNUM[x % 32]).join('');
 const clone = (o) => structuredClone(o);
 const now = () => new Date().toISOString();
 const preset = (id) => clone(PRESETS.find((p) => p.id === id)?.config ?? PRESETS[0].config);
@@ -43,7 +56,8 @@ function seedAsset(owner, name, kind) {
 function newCreator({ email, password, handle, displayName }) {
   const id = randomUUID();
   const u = {
-    id, email, password, handle, plan: 'free', published: false, onboardingCompleted: false,
+    id, email, password, handle, plan: 'standard', published: false, onboardingCompleted: false,
+    phone: null, subscriptionStatus: 'inactive', subscriptionExpiresAt: null, referralCode: null, referrerId: null, collab: null, createdAt: now(),
     profile: { displayName, taglineLines: [], categories: [], bio: '', backgroundImageId: null },
     stats: { followers: 0, likes: 0, views30d: 0, updatedAt: null },
     socials: [],
@@ -96,7 +110,8 @@ const blockDto = (b) => ({ id: b.id, type: b.type, slug: b.slug, title: b.title,
 const itemDto = (i) => ({ ...i, image: image(i.imageId), embed: embed(i.url) });
 const productDto = (p) => ({ id: p.id, title: p.title, priceXof: p.priceXof, description: p.description, stock: p.stock, active: p.active, imageIds: p.imageIds, images: p.imageIds.map(image).filter(Boolean), createdAt: p.createdAt });
 const publicProduct = (p) => ({ id: p.id, title: p.title, priceXof: p.priceXof, description: p.description, images: p.imageIds.map(image).filter(Boolean), available: p.active && (p.stock == null || p.stock > 0) });
-const me = (u) => ({ id: u.id, email: u.email, handle: u.handle, displayName: u.profile.displayName, plan: u.plan, published: u.published, onboardingCompleted: u.onboardingCompleted });
+const me = (u) => ({ id: u.id, email: u.email, handle: u.handle, displayName: u.profile.displayName, plan: u.plan, published: u.published, onboardingCompleted: u.onboardingCompleted,
+  subscriptionStatus: u.subscriptionStatus, ...(u.subscriptionExpiresAt ? { subscriptionExpiresAt: u.subscriptionExpiresAt } : {}), admin: ADMIN_EMAILS.has(u.email) });
 const profileDto = (u) => ({ handle: u.handle, ...u.profile, backgroundImage: image(u.profile.backgroundImageId), published: u.published, plan: u.plan, onboardingCompleted: u.onboardingCompleted });
 const themeState = (u) => ({ draft: u.theme.draft, published: u.theme.published, version: u.theme.version, hasUnpublishedChanges: JSON.stringify(u.theme.draft) !== JSON.stringify(u.theme.published), updatedAt: u.theme.updatedAt, publishedAt: u.theme.publishedAt });
 
@@ -110,7 +125,7 @@ function buildPage(u, preview) {
   return {
     profile: { handle: u.handle, displayName: u.profile.displayName, taglineLines: u.profile.taglineLines, categories: u.profile.categories, bio: u.profile.bio },
     stats: u.stats, socials: u.socials.map(({ platform, url, followersCount }) => ({ platform, url, followersCount })), blocks, theme, images,
-    showBranding: u.plan !== 'pro', preview,
+    showBranding: u.plan !== 'boutique', preview,
     seo: { title: cats ? `${u.profile.displayName} — ${cats}` : u.profile.displayName, description: u.profile.bio || u.profile.displayName, ogImage: theme.background.imageId ? image(theme.background.imageId)?.urlTemplate.replace('{w}', '1080') : undefined },
   };
 }
@@ -175,6 +190,8 @@ app.post('/api/auth/register', (req, res) => {
   if (findByHandle(h)) return problem(res, 409, 'HANDLE_TAKEN', 'Ce nom d’utilisateur est déjà pris.');
   if ([...db.users.values()].some((u) => u.email.toLowerCase() === email.toLowerCase())) return problem(res, 409, 'EMAIL_TAKEN', 'Un compte existe déjà avec cet email.');
   const u = newCreator({ email: email.toLowerCase(), password, handle: h, displayName: displayName.trim() });
+  const referrer = db.users.get(db.referralCodes.get(String(req.body?.referralCode ?? '').trim().toUpperCase()));
+  if (referrer && referrer.id !== u.id) u.referrerId = referrer.id; // code inconnu : ignoré (D53)
   login(res, u);
   res.status(201).json(me(u));
 });
@@ -493,6 +510,198 @@ app.get('/api/me/analytics', auth, (req, res) => {
   res.json({ days, pageViews: ev.filter((e) => e.type === 'page_view').length, uniqueVisitors: ev.filter((e) => e.type === 'page_view').length, clicks: ev.filter((e) => e.type === 'link_click').length,
     byDay: dates.map((date) => ({ date, pageViews: ev.filter((e) => e.type === 'page_view' && e.at.startsWith(date)).length, clicks: ev.filter((e) => e.type === 'link_click' && e.at.startsWith(date)).length })),
     byBlock: Object.entries(byTarget).map(([target, clicks]) => ({ blockId: null, target, title: target, clicks })) });
+});
+
+// ───────────── Abonnements (D44–D47)
+app.get('/api/subscriptions/plans', (_req, res) => res.json([
+  { plan: 'standard', priceXof: PRICES.standard, periodDays: PERIOD_DAYS, hasShop: false },
+  { plan: 'boutique', priceXof: PRICES.boutique, periodDays: PERIOD_DAYS, hasShop: true },
+]));
+app.get('/api/me/subscription', auth, (req, res) => {
+  const u = req.user;
+  const days = u.subscriptionExpiresAt ? Math.max(0, Math.floor((Date.parse(u.subscriptionExpiresAt) - Date.now()) / 86400000)) : null;
+  res.json({ plan: u.plan, status: u.subscriptionStatus, canPublish: u.subscriptionStatus === 'active', ...(u.subscriptionExpiresAt ? { expiresAt: u.subscriptionExpiresAt, daysRemaining: days } : {}) });
+});
+const normPhone = (raw) => { const s = String(raw ?? '').trim(); return (s.startsWith('+') ? '+' : '') + s.replace(/\D/g, ''); };
+const phoneOk = (raw) => { const n = normPhone(raw).replace(/\D/g, '').length; return n >= 8 && n <= 15; };
+app.post('/api/me/subscription/checkout', auth, (req, res) => {
+  const { plan, phone } = req.body ?? {};
+  if (!['standard', 'boutique'].includes(plan)) return bad(res, 'plan', 'Plan inconnu.');
+  if (!phoneOk(phone)) return bad(res, 'phone', 'Numéro de téléphone invalide.');
+  req.user.phone ??= normPhone(phone);
+  const reference = 'SB-' + randomCode(12);
+  const p = { id: randomUUID(), reference, creatorId: req.user.id, plan, amountXof: PRICES[plan], status: 'PENDING', payerPhone: normPhone(phone), paidAt: null };
+  db.subPayments.set(reference, p);
+  res.json({ reference, paymentUrl: `/api/payments/mock/subscription/${reference}`, status: 'PENDING', amountXof: p.amountXof });
+});
+app.get('/api/me/subscription/payments/:reference', auth, (req, res) => {
+  const p = db.subPayments.get(req.params.reference);
+  if (!p || p.creatorId !== req.user.id) return problem(res, 404, 'NOT_FOUND', 'Élément introuvable.');
+  res.json({ reference: p.reference, status: p.status, plan: p.plan, amountXof: p.amountXof, ...(p.paidAt ? { paidAt: p.paidAt } : {}) });
+});
+app.get('/api/payments/mock/subscription/:reference', (req, res) => {
+  const p = db.subPayments.get(req.params.reference);
+  if (!p) return problem(res, 404, 'NOT_FOUND', 'Élément introuvable.');
+  res.type('html').send(`<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Paiement simulé</title>
+<body style="font-family:system-ui;background:#0e1016;color:#eef0f5;display:grid;place-items:center;min-height:100vh;margin:0"><main style="background:#161922;padding:28px;border-radius:16px;max-width:360px">
+<h1 style="font-size:18px">Abonnement (mode test)</h1><p>${p.plan} — ${p.amountXof} FCFA</p>
+<form method="post" action="/api/payments/mock/subscription/${p.reference}/complete?outcome=success"><button style="width:100%;min-height:48px">Payer avec Wave (simulé)</button></form>
+<form method="post" action="/api/payments/mock/subscription/${p.reference}/complete?outcome=failure"><button style="width:100%;min-height:48px;margin-top:8px">Simuler un échec</button></form></main></body></html>`);
+});
+function effectiveRate(u, at = Date.now()) {
+  return u.collab && Date.parse(u.collab.expiresAt) > at ? Math.max(BASE_RATE_BPS, u.collab.rateBps) : BASE_RATE_BPS;
+}
+function creditReferrer(p) {
+  const referee = db.users.get(p.creatorId);
+  const referrer = referee?.referrerId && db.users.get(referee.referrerId);
+  if (!referrer || db.earnings.some((e) => e.paymentId === p.id)) return;
+  const rateBps = effectiveRate(referrer, Date.parse(p.paidAt));
+  const knownPhones = new Set([referrer.phone, ...[...db.subPayments.values()].filter((x) => x.creatorId === referrer.id).map((x) => x.payerPhone),
+    ...[...db.withdrawals.values()].filter((w) => w.userId === referrer.id).map((w) => w.phone)].filter(Boolean));
+  const blocked = knownPhones.has(p.payerPhone) ? 'SELF_PAYMENT' : null;
+  const e = { id: randomUUID(), referrerId: referrer.id, refereeId: referee.id, paymentId: p.id, baseAmountXof: p.amountXof, rateBps,
+    amountXof: Math.floor((p.amountXof * rateBps) / 10000), blockedReason: blocked, availableAt: new Date(Date.parse(p.paidAt) + HOLD_DAYS * 86400000).toISOString(), createdAt: now() };
+  db.earnings.push(e);
+  if (!blocked && e.amountXof > 0) db.wallet.push({ userId: referrer.id, kind: 'REFERRAL_EARNING', amountXof: e.amountXof, availableAt: e.availableAt });
+}
+app.post('/api/payments/mock/subscription/:reference/complete', (req, res) => {
+  const p = db.subPayments.get(req.params.reference);
+  if (!p) return problem(res, 404, 'NOT_FOUND', 'Élément introuvable.');
+  if (p.status === 'PENDING') {
+    p.status = { success: 'PAID', failure: 'FAILED', cancel: 'CANCELED' }[req.query.outcome] ?? 'FAILED';
+    if (p.status === 'PAID') {
+      const u = db.users.get(p.creatorId);
+      p.paidAt = now();
+      const from = u.subscriptionStatus === 'active' && Date.parse(u.subscriptionExpiresAt) > Date.now() ? Date.parse(u.subscriptionExpiresAt) : Date.now();
+      Object.assign(u, { plan: p.plan, subscriptionStatus: 'active', subscriptionExpiresAt: new Date(from + PERIOD_DAYS * 86400000).toISOString() });
+      creditReferrer(p);
+    }
+  }
+  res.redirect(303, `${BASE}/app/abonnement/${p.reference}`);
+});
+
+// ───────────── Parrainage & portefeuille (D51–D56)
+const maskName = (raw) => {
+  const w = String(raw ?? '').trim().split(/\s+/).filter(Boolean);
+  if (!w.length) return '***';
+  const first = [...w[0]];
+  return first.slice(0, first.length >= 4 ? 2 : 1).join('') + '***' + (w.length > 1 ? ' ' + [...w[w.length - 1]][0].toUpperCase() + '.' : '');
+};
+const maskPhone = (raw) => {
+  if (!raw) return null;
+  const p = normPhone(raw);
+  if (p.startsWith('+221') && p.length === 13) return `+221 ${p.slice(4, 6)} *** ** ${p.slice(11)}`;
+  return p.length <= 6 ? '***' : p.slice(0, 4) + '*'.repeat(p.length - 6) + p.slice(-2);
+};
+function ensureCode(u) {
+  if (!u.referralCode) { do u.referralCode = randomCode(8); while (db.referralCodes.has(u.referralCode)); db.referralCodes.set(u.referralCode, u.id); }
+  return u.referralCode;
+}
+const collabDto = (u) => (u.collab && Date.parse(u.collab.expiresAt) > Date.now() ? { collab: u.collab } : {});
+const sumCredited = (id) => db.earnings.filter((e) => e.referrerId === id && !e.blockedReason).reduce((a, e) => a + e.amountXof, 0);
+app.get('/api/auth/referral-codes/:code', (req, res) => {
+  const u = db.users.get(db.referralCodes.get(String(req.params.code).toUpperCase()));
+  if (!u) return problem(res, 404, 'NOT_FOUND', 'Élément introuvable.');
+  res.json({ code: u.referralCode, referrerName: u.profile.displayName });
+});
+app.get('/api/me/referrals', auth, (req, res) => {
+  const u = req.user;
+  const code = ensureCode(u);
+  const rate = effectiveRate(u);
+  const refs = [...db.users.values()].filter((x) => x.referrerId === u.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  let current = 0, potential = 0, active = 0;
+  const referees = refs.map((r) => {
+    const status = r.subscriptionStatus === 'active' ? 'active' : r.subscriptionStatus === 'expired' ? 'expired' : 'registered';
+    const per = Math.floor((PRICES[r.plan] ?? PRICES.standard) * rate / 10000);
+    if (status === 'active') { active++; current += per; } else potential += per;
+    const earned = db.earnings.filter((e) => e.refereeId === r.id && e.referrerId === u.id && !e.blockedReason).reduce((a, e) => a + e.amountXof, 0);
+    return { maskedName: maskName(r.profile.displayName), ...(r.phone ? { maskedPhone: maskPhone(r.phone) } : {}), joinedAt: r.createdAt, status, earnedXof: earned };
+  });
+  const recentEarnings = db.earnings.filter((e) => e.referrerId === u.id).slice(-20).reverse().map((e) => ({
+    id: e.id, createdAt: e.createdAt, refereeMaskedName: maskName(db.users.get(e.refereeId)?.profile.displayName), baseAmountXof: e.baseAmountXof, rateBps: e.rateBps,
+    amountXof: e.amountXof, status: e.blockedReason ? 'blocked' : Date.parse(e.availableAt) > Date.now() ? 'held' : 'available', availableAt: e.availableAt,
+    ...(e.blockedReason ? { blockReason: e.blockedReason } : {}) }));
+  res.json({ code, link: `${BASE}/r/${code}`, baseRateBps: BASE_RATE_BPS, effectiveRateBps: rate, ...collabDto(u),
+    stats: { signups: refs.length, activeReferees: active, realEarnedXof: sumCredited(u.id), currentMonthlyXof: current, potentialMonthlyXof: potential }, referees, recentEarnings });
+});
+const withdrawalDto = (w) => ({ id: w.id, amountXof: w.amountXof, method: w.method, maskedPhone: maskPhone(w.phone), status: w.status, createdAt: w.createdAt,
+  ...(w.processedAt ? { processedAt: w.processedAt } : {}), ...(w.status === 'REJECTED' && w.note ? { note: w.note } : {}) });
+const available = (id) => db.wallet.filter((x) => x.userId === id && Date.parse(x.availableAt) <= Date.now()).reduce((a, x) => a + x.amountXof, 0);
+app.get('/api/me/wallet', auth, (req, res) => {
+  const id = req.user.id;
+  const held = db.wallet.filter((x) => x.userId === id && x.kind === 'REFERRAL_EARNING' && Date.parse(x.availableAt) > Date.now());
+  const mine = [...db.withdrawals.values()].filter((w) => w.userId === id).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const sum = (st) => mine.filter((w) => w.status === st).reduce((a, w) => a + w.amountXof, 0);
+  const next = held.map((x) => x.availableAt).sort()[0];
+  res.json({ availableXof: available(id), heldXof: held.reduce((a, x) => a + x.amountXof, 0), pendingWithdrawalXof: sum('REQUESTED'), totalEarnedXof: sumCredited(id),
+    totalWithdrawnXof: sum('PAID'), minWithdrawalXof: MIN_WITHDRAWAL, holdDays: HOLD_DAYS, ...(next ? { nextReleaseAt: next } : {}), withdrawals: mine.slice(0, 20).map(withdrawalDto) });
+});
+app.post('/api/me/wallet/withdrawals', auth, (req, res) => {
+  const { amountXof, method, phone, idempotencyKey } = req.body ?? {};
+  if (!phoneOk(phone)) return bad(res, 'phone', 'Numéro de téléphone invalide.');
+  if (!['wave', 'orange_money', 'free_money'].includes(method)) return bad(res, 'method', 'Moyen de retrait inconnu.');
+  if (!Number.isInteger(amountXof) || amountXof < MIN_WITHDRAWAL) return bad(res, 'amountXof', 'Le retrait minimum est de 1 500 FCFA.');
+  const mine = [...db.withdrawals.values()].filter((w) => w.userId === req.user.id);
+  const same = idempotencyKey && mine.find((w) => w.idempotencyKey === idempotencyKey);
+  if (same) return res.status(201).json(withdrawalDto(same));
+  if (mine.some((w) => w.status === 'REQUESTED')) return problem(res, 409, 'WITHDRAWAL_PENDING', 'Une demande de retrait est déjà en cours de traitement.');
+  if (amountXof > available(req.user.id)) return problem(res, 409, 'INSUFFICIENT_BALANCE', 'Solde retirable insuffisant.');
+  const w = { id: randomUUID(), userId: req.user.id, amountXof, method, phone: normPhone(phone), status: 'REQUESTED', idempotencyKey, createdAt: now(), processedAt: null, note: null, providerRef: null };
+  db.withdrawals.set(w.id, w);
+  db.wallet.push({ userId: w.userId, kind: 'WITHDRAWAL', amountXof: -amountXof, availableAt: w.createdAt });
+  res.status(201).json(withdrawalDto(w));
+});
+
+// ───────────── Admin (D56)
+const admin = (req, res, next) => (!req.user ? problem(res, 401, 'UNAUTHORIZED', 'Ta session a expiré. Reconnecte-toi.') : ADMIN_EMAILS.has(req.user.email) ? next() : problem(res, 403, 'FORBIDDEN', 'Accès refusé.'));
+const adminWithdrawal = (w) => {
+  const u = db.users.get(w.userId);
+  const refs = [...db.users.values()].filter((x) => x.referrerId === u.id);
+  return { ...withdrawalDto(w), phone: w.phone, maskedPhone: undefined, ...(w.providerRef ? { providerRef: w.providerRef } : {}), ...(w.note ? { note: w.note } : {}),
+    creator: { userId: u.id, handle: u.handle, displayName: u.profile.displayName, email: u.email },
+    signals: { blockedSelfPayments: db.earnings.filter((e) => e.referrerId === u.id && e.blockedReason).length, sameDayIpReferrals: 0, referees: refs.length, activeReferees: refs.filter((r) => r.subscriptionStatus === 'active').length } };
+};
+app.get('/api/admin/withdrawals', admin, (req, res) => {
+  const st = req.query.status;
+  res.json([...db.withdrawals.values()].filter((w) => !st || w.status === st).sort((a, b) => (st ? a.createdAt.localeCompare(b.createdAt) : b.createdAt.localeCompare(a.createdAt))).map(adminWithdrawal));
+});
+function decideWithdrawal(action) {
+  return (req, res) => {
+    const w = db.withdrawals.get(req.params.id);
+    if (!w) return problem(res, 404, 'NOT_FOUND', 'Élément introuvable.');
+    const note = String(req.body?.note ?? '').trim();
+    if (action === 'reject' && !note) return bad(res, 'note', 'Indique le motif du refus (il sera visible par le créateur).');
+    if (w.status !== 'REQUESTED') return problem(res, 409, 'WITHDRAWAL_FINAL', 'Cette demande a déjà été traitée.');
+    Object.assign(w, { status: action === 'pay' ? 'PAID' : 'REJECTED', processedAt: now(), note: note || null, providerRef: String(req.body?.providerRef ?? '').trim() || null });
+    if (w.status === 'REJECTED') db.wallet.push({ userId: w.userId, kind: 'WITHDRAWAL_REVERSAL', amountXof: w.amountXof, availableAt: w.processedAt });
+    res.json(adminWithdrawal(w));
+  };
+}
+app.post('/api/admin/withdrawals/:id/pay', admin, decideWithdrawal('pay'));
+app.post('/api/admin/withdrawals/:id/reject', admin, decideWithdrawal('reject'));
+const adminReferrer = (u) => {
+  const refs = [...db.users.values()].filter((x) => x.referrerId === u.id);
+  return { userId: u.id, handle: u.handle, displayName: u.profile.displayName, code: ensureCode(u), baseRateBps: BASE_RATE_BPS, effectiveRateBps: effectiveRate(u), ...collabDto(u),
+    referees: refs.length, activeReferees: refs.filter((r) => r.subscriptionStatus === 'active').length, totalEarnedXof: sumCredited(u.id) };
+};
+app.get('/api/admin/referrers/:handle', admin, (req, res) => {
+  const u = findByHandle(String(req.params.handle).toLowerCase());
+  u ? res.json(adminReferrer(u)) : problem(res, 404, 'NOT_FOUND', 'Élément introuvable.');
+});
+app.put('/api/admin/referrers/:handle/collab', admin, (req, res) => {
+  const u = findByHandle(String(req.params.handle).toLowerCase());
+  if (!u) return problem(res, 404, 'NOT_FOUND', 'Élément introuvable.');
+  const { rateBps, expiresAt } = req.body ?? {};
+  if (!Number.isInteger(rateBps) || rateBps < 2000 || rateBps > 6000) return bad(res, 'rateBps', 'Le taux collab doit être compris entre 20 % et 60 %.');
+  if (!(Date.parse(expiresAt) > Date.now())) return bad(res, 'expiresAt', 'La date d’expiration doit être dans le futur.');
+  u.collab = { rateBps, expiresAt: new Date(expiresAt).toISOString() };
+  res.json(adminReferrer(u));
+});
+app.delete('/api/admin/referrers/:handle/collab', admin, (req, res) => {
+  const u = findByHandle(String(req.params.handle).toLowerCase());
+  if (!u) return problem(res, 404, 'NOT_FOUND', 'Élément introuvable.');
+  u.collab = null;
+  res.json(adminReferrer(u));
 });
 
 app.use((req, res) => problem(res, 404, 'NOT_FOUND', 'Élément introuvable.'));

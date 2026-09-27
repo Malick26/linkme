@@ -21,6 +21,17 @@ Documentation interactive en développement : `http://localhost:8080/v3/api-docs
 | `DELETE` | `/api/me` | `deleteAccount` | session | Suppression du compte (loi 2008-12) — anonymise les commandes, supprime le reste |
 | `GET` | `/api/me` | `getMe` | session | Utilisateur courant |
 
+## admin
+
+| Méthode | Chemin | operationId | Accès | Description |
+|---|---|---|---|---|
+| `GET` | `/api/admin/referrers/{handle}` | `adminGetReferrer` | session | Fiche parrain d'un créateur (admin) |
+| `DELETE` | `/api/admin/referrers/{handle}/collab` | `adminEndCollab` | session | Mettre fin à la collab (retour au taux de base 20 %) |
+| `PUT` | `/api/admin/referrers/{handle}/collab` | `adminSetCollab` | session | Accorder un taux collab négocié (≤ 60 %) jusqu'à une date d'expiration |
+| `GET` | `/api/admin/withdrawals` | `adminListWithdrawals` | session | Demandes de retrait (admin) avec signaux anti-fraude |
+| `POST` | `/api/admin/withdrawals/{withdrawalId}/pay` | `adminMarkWithdrawalPaid` | session | Marquer un retrait comme payé (après l'envoi manuel de l'argent) |
+| `POST` | `/api/admin/withdrawals/{withdrawalId}/reject` | `adminRejectWithdrawal` | session | Refuser un retrait (le montant est recrédité au portefeuille) |
+
 ## analytics
 
 | Méthode | Chemin | operationId | Accès | Description |
@@ -85,6 +96,15 @@ Documentation interactive en développement : `http://localhost:8080/v3/api-docs
 | `POST` | `/api/public/{handle}/events` | `trackEvent` | public | Enregistrer un événement analytics |
 | `GET` | `/api/public/{handle}/products/{productId}` | `getPublicProduct` | public | Fiche produit publique |
 
+## referrals
+
+| Méthode | Chemin | operationId | Accès | Description |
+|---|---|---|---|---|
+| `GET` | `/api/auth/referral-codes/{code}` | `getReferralCode` | public | Vérifier un code de parrainage (bandeau « Invité·e par … » à l'inscription) |
+| `GET` | `/api/me/referrals` | `getMyReferrals` | session | Mon parrainage : lien, taux, filleuls (masqués), gains réels et potentiels |
+| `GET` | `/api/me/wallet` | `getMyWallet` | session | Mon portefeuille : solde retirable, gains en attente (7 jours), retraits |
+| `POST` | `/api/me/wallet/withdrawals` | `requestWithdrawal` | session | Demander un retrait (décaissement manuel par l'équipe, minimum 1 500 FCFA) |
+
 ## shop
 
 | Méthode | Chemin | operationId | Accès | Description |
@@ -97,6 +117,17 @@ Documentation interactive en développement : `http://localhost:8080/v3/api-docs
 | `PUT` | `/api/me/products/{productId}` | `updateProduct` | session | Modifier un produit |
 | `GET` | `/api/public/orders/{reference}` | `getOrderStatus` | public | Statut public d'une commande |
 | `POST` | `/api/public/{handle}/checkout` | `checkout` | public | Créer une commande |
+
+## subscriptions
+
+| Méthode | Chemin | operationId | Accès | Description |
+|---|---|---|---|---|
+| `GET` | `/api/me/subscription` | `getMySubscription` | session | Statut de mon abonnement |
+| `POST` | `/api/me/subscription/checkout` | `checkoutSubscription` | session | Payer une période d'abonnement (30 jours) — prolonge l'échéance en cours |
+| `GET` | `/api/me/subscription/payments/{reference}` | `getSubscriptionPayment` | session | Statut d'un paiement d'abonnement (page de retour du fournisseur) |
+| `GET` | `/api/payments/mock/subscription/{reference}` | `mockSubscriptionPaymentPage` | public | Page de paiement d'abonnement simulée (profil dev/test uniquement) |
+| `POST` | `/api/payments/mock/subscription/{reference}/complete` | `mockSubscriptionPaymentComplete` | public | Simuler l'issue d'un paiement d'abonnement (mock) |
+| `GET` | `/api/subscriptions/plans` | `getSubscriptionPlans` | public | Catalogue des deux plans payants (public — sert la page tarifs) |
 
 ## theme
 
@@ -112,9 +143,12 @@ Documentation interactive en développement : `http://localhost:8080/v3/api-docs
 | Méthode | Chemin | operationId | Accès | Description |
 |---|---|---|---|---|
 | `POST` | `/api/me/uploads/complete` | `completeUpload` | session | Enregistre un asset Cloudinary après upload (vérifie la signature de la réponse Cloudinary) |
+| `POST` | `/api/me/uploads/complete-audio` | `completeAudioUpload` | session | Enregistre un son Cloudinary après upload (vérifie la signature de la réponse Cloudinary) |
 | `POST` | `/api/me/uploads/local` | `uploadLocal` | session | Upload direct (dev / sans Cloudinary). Désactivé si `LOCAL_UPLOADS_ENABLED=false`. |
+| `POST` | `/api/me/uploads/local-audio` | `uploadLocalAudio` | session | Upload de son direct (dev / sans Cloudinary). Désactivé si `LOCAL_UPLOADS_ENABLED=false`. |
 | `POST` | `/api/me/uploads/sign` | `signUpload` | session | Signer un upload Cloudinary |
+| `POST` | `/api/me/uploads/sign-audio` | `signAudioUpload` | session | Signer un upload de son Cloudinary (item bloc « sons », D50) |
 
 ---
 
-51 opérations. Généré depuis le contrat le 2026-09-20 (`python3 infra/scripts/gen_api_doc.py`).
+70 opérations. Généré depuis le contrat le 2026-09-27 (`python3 infra/scripts/gen_api_doc.py`).

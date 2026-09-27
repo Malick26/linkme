@@ -873,6 +873,160 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/referral-codes/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Vérifier un code de parrainage (bandeau « Invité·e par … » à l'inscription) */
+        get: operations["getReferralCode"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/referrals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Mon parrainage : lien, taux, filleuls (masqués), gains réels et potentiels */
+        get: operations["getMyReferrals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/wallet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Mon portefeuille : solde retirable, gains en attente (7 jours), retraits */
+        get: operations["getMyWallet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me/wallet/withdrawals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Demander un retrait (décaissement manuel par l'équipe, minimum 1 500 FCFA) */
+        post: operations["requestWithdrawal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/withdrawals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Demandes de retrait (admin) avec signaux anti-fraude */
+        get: operations["adminListWithdrawals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/withdrawals/{withdrawalId}/pay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Marquer un retrait comme payé (après l'envoi manuel de l'argent) */
+        post: operations["adminMarkWithdrawalPaid"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/withdrawals/{withdrawalId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refuser un retrait (le montant est recrédité au portefeuille) */
+        post: operations["adminRejectWithdrawal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/referrers/{handle}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fiche parrain d'un créateur (admin) */
+        get: operations["adminGetReferrer"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/referrers/{handle}/collab": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Accorder un taux collab négocié (≤ 60 %) jusqu'à une date d'expiration */
+        put: operations["adminSetCollab"];
+        post?: never;
+        /** Mettre fin à la collab (retour au taux de base 20 %) */
+        delete: operations["adminEndCollab"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -913,6 +1067,8 @@ export interface components {
             displayName: string;
             /** @constant */
             acceptTerms: true;
+            /** @description Code du parrain (lien /r/{code}). Inconnu ou invalide → ignoré, l'inscription n'échoue jamais pour ça. */
+            referralCode?: string;
         };
         LoginRequest: {
             /** Format: email */
@@ -937,6 +1093,8 @@ export interface components {
         Me: {
             /** Format: uuid */
             id: string;
+            /** @description Accès à l'espace admin (emails listés dans ADMIN_EMAILS). */
+            admin: boolean;
             email: string;
             handle: string;
             displayName: string;
@@ -1453,6 +1611,161 @@ export interface components {
                 /** Format: int64 */
                 clicks: number;
             }[];
+        };
+        /**
+         * Format: int64
+         * @description Montant en FCFA (XOF, entier).
+         */
+        Money: number;
+        /** @description Taux en points de base (2000 = 20 %). */
+        RateBps: number;
+        ReferralCodeInfo: {
+            code: string;
+            /** @description Nom affiché du parrain (il a lui-même partagé ce lien). */
+            referrerName: string;
+        };
+        Collab: {
+            rateBps: components["schemas"]["RateBps"];
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        /** @enum {string} */
+        RefereeStatus: "registered" | "active" | "expired";
+        Referee: {
+            /** @description Nom masqué (ex. « Aw*** D. »). */
+            maskedName: string;
+            /** @description Numéro masqué (ex. « +221 77 *** ** 67 »). */
+            maskedPhone?: string | null;
+            /** Format: date-time */
+            joinedAt: string;
+            status: components["schemas"]["RefereeStatus"];
+            earnedXof: components["schemas"]["Money"];
+        };
+        /** @enum {string} */
+        ReferralEarningStatus: "held" | "available" | "blocked";
+        ReferralEarning: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            createdAt: string;
+            refereeMaskedName: string;
+            baseAmountXof: components["schemas"]["Money"];
+            rateBps: components["schemas"]["RateBps"];
+            amountXof: components["schemas"]["Money"];
+            status: components["schemas"]["ReferralEarningStatus"];
+            /** Format: date-time */
+            availableAt: string;
+            /** @enum {string|null} */
+            blockReason?: "SELF_PAYMENT" | null;
+        };
+        ReferralStats: {
+            signups: number;
+            activeReferees: number;
+            realEarnedXof: components["schemas"]["Money"];
+            currentMonthlyXof: components["schemas"]["Money"];
+            potentialMonthlyXof: components["schemas"]["Money"];
+        };
+        ReferralOverview: {
+            code: string;
+            /** @description Lien à partager (…/r/{code}). */
+            link: string;
+            baseRateBps: components["schemas"]["RateBps"];
+            effectiveRateBps: components["schemas"]["RateBps"];
+            collab?: components["schemas"]["Collab"] | null;
+            stats: components["schemas"]["ReferralStats"];
+            referees: components["schemas"]["Referee"][];
+            recentEarnings: components["schemas"]["ReferralEarning"][];
+        };
+        /** @enum {string} */
+        WithdrawalMethod: "wave" | "orange_money" | "free_money";
+        /** @enum {string} */
+        WithdrawalStatus: "REQUESTED" | "PAID" | "REJECTED";
+        Withdrawal: {
+            /** Format: uuid */
+            id: string;
+            amountXof: components["schemas"]["Money"];
+            method: components["schemas"]["WithdrawalMethod"];
+            maskedPhone: string;
+            status: components["schemas"]["WithdrawalStatus"];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            processedAt?: string | null;
+            note?: string | null;
+        };
+        Wallet: {
+            availableXof: components["schemas"]["Money"];
+            heldXof: components["schemas"]["Money"];
+            pendingWithdrawalXof: components["schemas"]["Money"];
+            totalEarnedXof: components["schemas"]["Money"];
+            totalWithdrawnXof: components["schemas"]["Money"];
+            minWithdrawalXof: components["schemas"]["Money"];
+            holdDays: number;
+            /** Format: date-time */
+            nextReleaseAt?: string | null;
+            withdrawals: components["schemas"]["Withdrawal"][];
+        };
+        WithdrawalRequest: {
+            /** Format: int64 */
+            amountXof: number;
+            method: components["schemas"]["WithdrawalMethod"];
+            phone: string;
+            idempotencyKey?: string;
+        };
+        WithdrawalDecision: {
+            /** @description Référence de la transaction Wave/Orange Money (paiement). */
+            providerRef?: string;
+            /** @description Motif (obligatoire pour un refus, visible par le créateur). */
+            note?: string;
+        };
+        FraudSignals: {
+            /** @description Gains bloqués : le filleul a payé avec le numéro du parrain. */
+            blockedSelfPayments: number;
+            /** @description Filleuls inscrits le même jour depuis la même adresse IP qu'un autre filleul. */
+            sameDayIpReferrals: number;
+            referees: number;
+            activeReferees: number;
+        };
+        AdminWithdrawal: {
+            /** Format: uuid */
+            id: string;
+            amountXof: components["schemas"]["Money"];
+            method: components["schemas"]["WithdrawalMethod"];
+            /** @description Numéro complet (nécessaire pour envoyer l'argent). */
+            phone: string;
+            status: components["schemas"]["WithdrawalStatus"];
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            processedAt?: string | null;
+            providerRef?: string | null;
+            note?: string | null;
+            creator: {
+                /** Format: uuid */
+                userId: string;
+                handle: string;
+                displayName: string;
+                email: string;
+            };
+            signals: components["schemas"]["FraudSignals"];
+        };
+        AdminReferrer: {
+            /** Format: uuid */
+            userId: string;
+            handle: string;
+            displayName: string;
+            code: string;
+            baseRateBps: components["schemas"]["RateBps"];
+            effectiveRateBps: components["schemas"]["RateBps"];
+            collab?: components["schemas"]["Collab"] | null;
+            referees: number;
+            activeReferees: number;
+            totalEarnedXof: components["schemas"]["Money"];
+        };
+        CollabRequest: {
+            rateBps: number;
+            /** Format: date-time */
+            expiresAt: string;
         };
     };
     responses: {
@@ -2893,6 +3206,257 @@ export interface operations {
                 };
                 content?: never;
             };
+        };
+    };
+    getReferralCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Code valide */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferralCodeInfo"];
+                };
+            };
+            404: components["responses"]["Problem"];
+        };
+    };
+    getMyReferrals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferralOverview"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    getMyWallet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Wallet"];
+                };
+            };
+            401: components["responses"]["Problem"];
+        };
+    };
+    requestWithdrawal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WithdrawalRequest"];
+            };
+        };
+        responses: {
+            /** @description Demande enregistrée, montant réservé */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Withdrawal"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            429: components["responses"]["Problem"];
+        };
+    };
+    adminListWithdrawals: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["WithdrawalStatus"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminWithdrawal"][];
+                };
+            };
+            403: components["responses"]["Problem"];
+        };
+    };
+    adminMarkWithdrawalPaid: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                withdrawalId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WithdrawalDecision"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminWithdrawal"];
+                };
+            };
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    adminRejectWithdrawal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                withdrawalId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WithdrawalDecision"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminWithdrawal"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+        };
+    };
+    adminGetReferrer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                handle: components["parameters"]["HandlePath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminReferrer"];
+                };
+            };
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    adminSetCollab: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                handle: components["parameters"]["HandlePath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollabRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminReferrer"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+        };
+    };
+    adminEndCollab: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                handle: components["parameters"]["HandlePath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminReferrer"];
+                };
+            };
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
         };
     };
 }

@@ -12,3 +12,4 @@
 .au__prefix { display: flex; align-items: stretch; border: 1px solid var(--ed-border); border-radius: 10px; background: var(--ed-bg); overflow: hidden; }
 .au__prefix span { display: flex; align-items: center; padding: 0 10px; color: var(--ed-muted); font-size: 14px; border-right: 1px solid var(--ed-border); white-space: nowrap; }
 .au__prefix input { border: 0 !important; border-radius: 0 !important; }
+.au__invite { margin: 0 0 18px; padding: 12px 14px; border-radius: 12px; background: var(--ed-panel-2); text-align: center; font-size: 14px; }

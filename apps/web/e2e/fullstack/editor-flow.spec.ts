@@ -49,6 +49,14 @@ test('parcours créateur complet', async ({ page }) => {
   await page.getByRole('radio', { name: /Midnight Blue/ }).click();
   await page.getByTestId('onb-finish').click();
   await expect(page).toHaveURL(/\/app(\?|$)/);
+  // D44 : publiée mais invisible tant qu'aucun abonnement n'est payé → on s'abonne (paiement simulé)
+  await expect(page.getByText('Abonne-toi pour rendre ta page visible')).toBeVisible();
+  await page.goto('/app/abonnement');
+  await page.getByLabel('Numéro pour le paiement').fill('+221 77 000 11 22');
+  await page.getByRole('button', { name: 'Payer et activer' }).click();
+  await page.getByRole('button', { name: 'Payer avec Wave (simulé)' }).click();
+  await expect(page.getByText('Paiement reçu — ton abonnement est actif.')).toBeVisible();
+  await page.goto('/app');
   await expect(page.getByText('Ta page est en ligne')).toBeVisible();
 
   // 3. Page publique publiée

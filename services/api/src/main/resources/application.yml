@@ -114,6 +114,12 @@ app:
     standard-price-xof: ${SUBSCRIPTION_STANDARD_PRICE_XOF:1100}
     boutique-price-xof: ${SUBSCRIPTION_BOUTIQUE_PRICE_XOF:2700}
     period-days: ${SUBSCRIPTION_PERIOD_DAYS:30}
+  referral:
+    base-rate-bps: ${REFERRAL_BASE_RATE_BPS:2000}
+    max-collab-rate-bps: 6000
+    hold-days: ${REFERRAL_HOLD_DAYS:7}
+    min-withdrawal-xof: ${REFERRAL_MIN_WITHDRAWAL_XOF:1500}
+  admin-emails: ${ADMIN_EMAILS:}
   rate-limits:
     auth-per-minute: 10
     contact-per-10-minutes: 5
@@ -121,3 +127,5 @@ app:
     events-per-minute: 120
     webhooks-per-minute: 60
     uploads-per-minute: 30
+    withdrawals-per-hour: 5
+    referral-lookups-per-minute: 30

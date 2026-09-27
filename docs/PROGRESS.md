@@ -241,3 +241,33 @@ environnement de construction (D26). À exécuter avant de considérer cette pha
 **Reste à faire sur ce chantier** : e2e Playwright dédiés (upload de son, image de fond, façades Deezer/TikTok) ;
 vérifier le rendu réel d'un widget Deezer et d'un embed TikTok (jamais testés dans un vrai navigateur ici) ; suite du
 chantier plus large (C, D, E ci-dessus, toujours non commencées).
+
+---
+
+## Phase 7 — Chantier C : parrainage à deux vitesses + portefeuille (27/09/2026)
+
+Choix confirmés par Malick avant de coder : commission sur **tous** les abonnements du filleul, gel de **7 jours**,
+**écran admin minimal** pour les retraits. Décisions : D51–D58.
+
+| Élément | État | Preuve |
+|---|---|---|
+| Contrat OpenAPI : 10 opérations (`getReferralCode`, `getMyReferrals`, `getMyWallet`, `requestWithdrawal`, `adminListWithdrawals`, `adminMarkWithdrawalPaid`, `adminRejectWithdrawal`, `adminGetReferrer`, `adminSetCollab`, `adminEndCollab`), `Me.admin`, `RegisterRequest.referralCode` | ✅ | `redocly lint` valide (44 avertissements, tous préexistants) · `npm run gen:api` · `docs/API.md` régénéré (70 opérations) |
+| Contrat ↔ handlers Spring | ✅ | vérification statique des annotations : **70/70**, 0 manquant, 0 hors contrat (équivalent de `OpenApiContractTest`, qui reste à exécuter via Maven) |
+| Migration `V5__referrals.sql` (5 tables, contraintes, 2 déclencheurs append-only) | ✅ | V1→V5 rejouées sur **PostgreSQL 16 réel** ; 12 cas de contraintes vérifiés (auto-parrainage, collab > 60 %, collab sans échéance, gain en double, écriture de signe faux, retrait sans demande, 2ᵉ demande ouverte, moyen inconnu, UPDATE/DELETE interdits) ; solde calculé 1 620 − 1 500 = 120 |
+| Back : module `referral` (entités, dépôts, `ReferralService`, `WalletService`, écouteur après commit, emails, 2 contrôleurs), `AdminAccess` + `ROLE_ADMIN`, `Masking`, rattachement à l'inscription, limitation de débit (retraits, codes) | ⚠️ écrit | règles pures compilées par `javac -Xlint:all` (0 avertissement) et exécutées sur la JVM : **33/33** (commission, taux collab/expiration, gel, réserve/recrédit, décision unique, masquage) ; le reste relu ligne à ligne — **compilation Maven toujours impossible ici** (D26, re-vérifié : Maven Central, Docker Hub et GitHub hors dépôts autorisés bloqués) |
+| Tests back écrits : `ReferralIT` (7), `WalletIT` (3, gel ramené à 0 j), `ReferralRulesTest` (4) | ⚠️ écrits | à exécuter via `./mvnw verify` |
+| Front : pages **Parrainage** (lien, copie, WhatsApp, taux/collab, gains réels/mensuels/potentiels, filleuls masqués, derniers gains), **Portefeuille** (solde, gel, retrait Wave/OM/Free, historique), **Admin → Retraits** (+ collabs), lien `/r/CODE` et bandeau « Invité·e par … » à l'inscription, garde `adminGuard` | ✅ | `npm run lint` 0 erreur / 0 couleur en dur · `npm test` **75/75** · `npm run build` sans avertissement · JS initial **139,8 Ko gzip** (D57) |
+| E2E navigateur contre le mock contractuel (D58) | ✅ | `referral.spec.ts` **3/3** (gel 7 j) + **3/3** (gel 0 j : collab 60 % → 1 620 FCFA → retrait → refus motivé → recrédit → paiement admin) ; suite fullstack complète **10/10** + 1 ignoré par conception ; `contact.spec.ts` stabilisé (attente de l'hydratation) **15/15** en répétition |
+| Captures regardées | ✅ | parrainage 1280/390, portefeuille 1280/390, admin 1280, inscription invitée 390 — pas de débordement horizontal à 390 px |
+| Page publique inchangée | ✅ | e2e public 17/19 : les 2 écarts (390/430 px, 2 % de pixels, rendu des polices) sont **identiques au pixel près sur le code d'avant cette phase** → environnement, pas régression |
+
+Correctifs trouvés en route : le test e2e « parcours créateur complet » était cassé depuis la phase 5 (D58) ; la
+règle de limitation de débit des uploads ne couvrait pas les uploads audio de la phase 6 (`-audio` ajouté).
+
+**Gate 7 (partiel)** : front, contrat, base de données et règles métier **exécutés et verts** ; intégration Spring
+**écrite mais non compilée ici**. À faire chez toi : `./mvnw verify` (doit inclure `ReferralIT`, `WalletIT`,
+`ReferralRulesTest`, `OpenApiContractTest`), puis mettre ton email dans `ADMIN_EMAILS`.
+
+**Reste du chantier** : (D) codes promo admin (%, nombre d'usages) + CRM WhatsApp/email + page d'inscription aux
+messages ; (E) gestion admin des collabs en liste + pop-up accueil/dashboard.
+

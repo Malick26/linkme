@@ -2,7 +2,14 @@ import { Injectable, Pipe, PipeTransform, inject, signal } from '@angular/core';
 import { Dict, I18nKey, fr } from './fr';
 
 export type Lang = 'fr' | 'en';
-const DICTS: Partial<Record<Lang, Dict>> = { fr };
+/** FR = dictionnaire initial, complété par celui de l'éditeur quand son chunk est chargé. */
+const FR: Partial<Dict> = { ...fr };
+const DICTS: Partial<Record<Lang, Partial<Dict>>> = { fr: FR };
+
+/** Appelé une fois par le chunk différé de l'éditeur (`editor.routes.ts`). */
+export function registerEditorDictionary(extra: Partial<Dict>): void {
+  Object.assign(FR, extra);
+}
 
 export function interpolate(s: string, params?: Record<string, string | number>): string {
   if (!params) return s;
@@ -14,7 +21,7 @@ export class I18n {
   readonly lang = signal<Lang>('fr');
 
   t(key: I18nKey, params?: Record<string, string | number>): string {
-    return interpolate((DICTS[this.lang()] ?? fr)[key] ?? fr[key] ?? key, params);
+    return interpolate((DICTS[this.lang()] ?? FR)[key] ?? FR[key] ?? key, params);
   }
 
   /** Change de langue ; le dictionnaire EN est chargé à la demande (hors bundle initial). */
@@ -26,7 +33,7 @@ export class I18n {
   /** Message utilisateur pour un code d'erreur API (repli : message générique). */
   error(code: string | undefined): string {
     const key = `error.${code}` as I18nKey;
-    return code && key in fr ? this.t(key) : this.t('common.error');
+    return code && key in FR ? this.t(key) : this.t('common.error');
   }
 }
 

@@ -60,10 +60,12 @@ Parcours bout-en-bout contre ce mock (utilisé pour `npm run e2e:fullstack` sans
 
 ```bash
 cd apps/web && npm run build
-PUBLIC_BASE_URL=http://localhost:4101 node scripts/mock-api.mjs &
+PUBLIC_BASE_URL=http://localhost:4101 MOCK_ADMIN_EMAILS=admin-e2e@test.sn node scripts/mock-api.mjs &
 PORT=4101 API_PROXY=true API_INTERNAL_URL=http://localhost:8080 \
   PUBLIC_BASE_URL=http://localhost:4101 node dist/web/server/server.mjs &
 E2E_BASE_URL=http://localhost:4101 npm run e2e:fullstack
+# parcours retrait/admin du parrainage : relancer le mock sans gel des gains
+# MOCK_REFERRAL_HOLD_DAYS=0 (mock) et MOCK_REFERRAL_HOLD_DAYS=0 E2E_BASE_URL=… npx playwright test e2e/fullstack/referral.spec.ts
 ```
 
 | Commande (dans `apps/web`) | Effet |
@@ -99,6 +101,21 @@ Tout est décrit et commenté dans [`infra/.env.example`](infra/.env.example). L
 | `PAYMENT_DEFAULT_PROVIDER`, `PAYDUNYA_*`, `CINETPAY_*` | paiements mobile money |
 | `SMTP_*`, `MAIL_FROM` | emails (ventes, reçus, réinitialisation) |
 | `SEED_DEMO`, `PAYMENT_MOCK_ENABLED` | démo et paiement simulé — **toujours `false` en production** |
+| `ADMIN_EMAILS` | comptes ayant accès à l'espace admin (retraits, collabs) — ex. `toi@exemple.sn` |
+| `REFERRAL_BASE_RATE_BPS`, `REFERRAL_HOLD_DAYS`, `REFERRAL_MIN_WITHDRAWAL_XOF` | parrainage : 20 %, gel 7 jours, retrait dès 1 500 FCFA |
+
+### Parrainage et retraits (espace admin)
+
+Chaque créateur a un lien `https://<domaine>/r/<CODE>` (page **Parrainage**). Il touche 20 % de **chaque** paiement
+d'abonnement de ses filleuls (ou le taux d'une collab négociée, ≤ 60 %, jusqu'à une date d'expiration), gelé 7 jours,
+puis retirable dès 1 500 FCFA depuis **Portefeuille**. Les retraits sont **envoyés à la main** :
+
+1. mettre ton email dans `ADMIN_EMAILS`, redémarrer l'API, te reconnecter → l'entrée **Admin** apparaît ;
+2. `/app/admin/retraits` liste les demandes avec le numéro complet et des signaux anti-fraude (gains bloqués pour
+   auto-parrainage, inscriptions depuis la même IP le même jour) ;
+3. envoie l'argent sur Wave / Orange Money / Free Money, puis **Marquer comme payé** (avec la référence de la
+   transaction) — ou **Refuser** avec un motif : le montant est recrédité au créateur, qui reçoit un email ;
+4. même page, section **Collabs négociées** : taux entre 20 et 60 % et date d'expiration pour un créateur donné.
 
 ### Brancher les paiements
 

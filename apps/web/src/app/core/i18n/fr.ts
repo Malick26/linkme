@@ -1,3 +1,5 @@
+import type { frEditor } from './fr-editor';
+
 /** Dictionnaire français (langue par défaut). Toute clé ajoutée ici doit exister dans en.ts (vérifié à la compilation). */
 export const fr = {
   // Commun
@@ -537,5 +539,6 @@ export const fr = {
   'error.PLAN_REQUIRED': 'La boutique nécessite l’abonnement Boutique.',
 } as const;
 
-export type I18nKey = keyof typeof fr;
+/** Clés du back-office chargées avec l'éditeur (hors bundle initial de la page publique, règle 3). */
+export type I18nKey = keyof typeof fr | keyof typeof frEditor;
 export type Dict = Record<I18nKey, string>;

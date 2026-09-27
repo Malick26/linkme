@@ -8,12 +8,13 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 /** Principal stocké en session (sérialisable, sans donnée sensible hormis le hash utilisé à l'authentification). */
-public record AppUser(UUID id, String email, String passwordHash) implements UserDetails {
+public record AppUser(UUID id, String email, String passwordHash, boolean admin) implements UserDetails {
     private static final long serialVersionUID = 1L;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("ROLE_CREATOR"));
+        return admin ? List.of(new SimpleGrantedAuthority("ROLE_CREATOR"), new SimpleGrantedAuthority("ROLE_ADMIN"))
+                : List.of(new SimpleGrantedAuthority("ROLE_CREATOR"));
     }
 
     @Override
@@ -28,6 +29,6 @@ public record AppUser(UUID id, String email, String passwordHash) implements Use
 
     /** Le hash n'a pas à survivre en session. */
     public AppUser withoutSecret() {
-        return new AppUser(id, email, null);
+        return new AppUser(id, email, null, admin);
     }
 }

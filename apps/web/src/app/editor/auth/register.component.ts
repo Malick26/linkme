@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
-import { debounceTime, distinctUntilChanged, filter, switchMap } from 'rxjs';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { catchError, debounceTime, distinctUntilChanged, filter, of, switchMap } from 'rxjs';
 import { BrandLogoComponent } from '../../../design-system';
 import { MeApi } from '../../core/api/me-api.service';
 import { AuthStore } from '../../core/auth/auth.store';
@@ -20,6 +20,9 @@ import { I18n, TPipe } from '../../core/i18n/i18n.service';
         <div class="au__logo"><lm-brand-logo /></div>
         <h1 class="au__title">{{ 'auth.register.title' | t }}</h1>
         <p class="ed-muted au__sub">{{ 'auth.register.subtitle' | t }}</p>
+        @if (referrer(); as r) {
+          <p class="au__invite" role="status" data-testid="invited-by"><strong>{{ 'referral.invitedBy' | t: { name: r.referrerName } }}</strong><br /><span class="ed-muted">{{ 'referral.invitedByHint' | t }}</span></p>
+        }
         <form class="au__form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
           <label class="ed-field"><span>{{ 'auth.field.displayName' | t }}</span><input formControlName="displayName" autocomplete="name" maxlength="60" required /></label>
           <label class="ed-field">
@@ -48,6 +51,8 @@ export class RegisterComponent {
   protected readonly host = typeof location !== 'undefined' ? location.host : 'linkme.sn';
   protected readonly busy = signal(false);
   protected readonly error = signal('');
+  /** Parrain (D53) : lu depuis ?ref=CODE (lien /r/CODE), vérifié par l'API, envoyé avec l'inscription s'il est valide. */
+  protected readonly referrer = signal<{ code: string; referrerName: string } | null>(null);
   protected readonly handleState = signal<'available' | 'taken' | 'reserved' | 'invalid' | null>(null);
   protected readonly form = inject(FormBuilder).nonNullable.group({
     displayName: ['', [Validators.required, Validators.maxLength(60)]],
@@ -58,6 +63,10 @@ export class RegisterComponent {
   });
 
   constructor() {
+    const ref = inject(ActivatedRoute).snapshot.queryParamMap.get('ref')?.trim();
+    if (ref && /^[A-Za-z0-9]{4,16}$/.test(ref)) {
+      this.api.referralCode(ref).pipe(catchError(() => of(null)), takeUntilDestroyed()).subscribe((r) => this.referrer.set(r));
+    }
     const c = this.form.controls;
     // suggestion du handle depuis le nom
     c.displayName.valueChanges.pipe(takeUntilDestroyed()).subscribe((v) => {
@@ -92,7 +101,8 @@ export class RegisterComponent {
     this.error.set('');
     try {
       const v = this.form.getRawValue();
-      await this.auth.register({ ...v, acceptTerms: true });
+      const referralCode = this.referrer()?.code;
+      await this.auth.register({ ...v, acceptTerms: true, ...(referralCode ? { referralCode } : {}) });
       await this.router.navigateByUrl('/app/onboarding');
     } catch (e) {
       this.error.set(this.i18n.error(toProblem(e).code));

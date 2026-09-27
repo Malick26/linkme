@@ -7,6 +7,8 @@ import { expect, test } from '@playwright/test';
 test.describe('formulaire de contact public', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/malick/contact');
+    // page rendue au serveur : on attend l'hydratation, sinon la saisie peut précéder le branchement du formulaire
+    await page.waitForLoadState('networkidle');
   });
 
   test('accepte un numéro écrit avec des tirets', async ({ page }) => {

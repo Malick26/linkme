@@ -2,7 +2,8 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import type {
-  AnalyticsSummary, AssetKind, Audio, Block, BlockInput, BlockItem, BlockItemInput, ContactMessagePage, Earnings, Image, LoginRequest, Me,
+  AdminReferrer, AdminWithdrawal, AnalyticsSummary, AssetKind, CollabRequest, ReferralCodeInfo, ReferralOverview, Wallet, Withdrawal,
+  WithdrawalDecision, WithdrawalRequest, WithdrawalStatus, Audio, Block, BlockInput, BlockItem, BlockItemInput, ContactMessagePage, Earnings, Image, LoginRequest, Me,
   OrderPage, PlanCatalogEntry, Product, ProductInput, Profile, ProfileStats, ProfileStatsInput, ProfileUpdate, PublicPage, RegisterRequest,
   SocialAccount, SocialAccountInput, SubscriptionCheckoutRequest, SubscriptionCheckoutResponse, SubscriptionPaymentView, SubscriptionStatus,
   ThemeConfig, ThemePreset, ThemeState, UploadSignature,
@@ -93,4 +94,20 @@ export class MeApi {
   subscriptionPayment(reference: string): Observable<SubscriptionPaymentView> {
     return this.http.get<SubscriptionPaymentView>(`/api/me/subscription/payments/${reference}`);
   }
+
+  // parrainage & portefeuille (D51–D56)
+  referralCode(code: string): Observable<ReferralCodeInfo> { return this.http.get<ReferralCodeInfo>(`/api/auth/referral-codes/${encodeURIComponent(code)}`); }
+  referrals(): Observable<ReferralOverview> { return this.http.get<ReferralOverview>('/api/me/referrals'); }
+  wallet(): Observable<Wallet> { return this.http.get<Wallet>('/api/me/wallet'); }
+  requestWithdrawal(body: WithdrawalRequest): Observable<Withdrawal> { return this.http.post<Withdrawal>('/api/me/wallet/withdrawals', body); }
+
+  // admin (D56)
+  adminWithdrawals(status?: WithdrawalStatus): Observable<AdminWithdrawal[]> {
+    return this.http.get<AdminWithdrawal[]>('/api/admin/withdrawals', { params: status ? { status } : {} });
+  }
+  adminPayWithdrawal(id: string, body: WithdrawalDecision): Observable<AdminWithdrawal> { return this.http.post<AdminWithdrawal>(`/api/admin/withdrawals/${id}/pay`, body); }
+  adminRejectWithdrawal(id: string, body: WithdrawalDecision): Observable<AdminWithdrawal> { return this.http.post<AdminWithdrawal>(`/api/admin/withdrawals/${id}/reject`, body); }
+  adminReferrer(handle: string): Observable<AdminReferrer> { return this.http.get<AdminReferrer>(`/api/admin/referrers/${encodeURIComponent(handle)}`); }
+  adminSetCollab(handle: string, body: CollabRequest): Observable<AdminReferrer> { return this.http.put<AdminReferrer>(`/api/admin/referrers/${encodeURIComponent(handle)}/collab`, body); }
+  adminEndCollab(handle: string): Observable<AdminReferrer> { return this.http.delete<AdminReferrer>(`/api/admin/referrers/${encodeURIComponent(handle)}/collab`); }
 }

@@ -21,6 +21,8 @@ tags:
   - name: subscriptions
   - name: analytics
   - name: account
+  - name: referrals
+  - name: admin
 
 paths:
   # ───────────────────────────── Auth
@@ -943,6 +945,173 @@ paths:
       responses:
         '303': { description: Redirection vers la page de confirmation }
 
+  # ───────────────────────────── Parrainage & portefeuille (chantier C, D51–D56)
+  /api/auth/referral-codes/{code}:
+    get:
+      tags: [referrals]
+      operationId: getReferralCode
+      summary: "Vérifier un code de parrainage (bandeau « Invité·e par … » à l'inscription)"
+      security: []
+      parameters:
+        - { name: code, in: path, required: true, schema: { type: string, maxLength: 16 } }
+      responses:
+        '200':
+          description: Code valide
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReferralCodeInfo' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /api/me/referrals:
+    get:
+      tags: [referrals]
+      operationId: getMyReferrals
+      summary: "Mon parrainage : lien, taux, filleuls (masqués), gains réels et potentiels"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReferralOverview' }
+        '401': { $ref: '#/components/responses/Problem' }
+  /api/me/wallet:
+    get:
+      tags: [referrals]
+      operationId: getMyWallet
+      summary: "Mon portefeuille : solde retirable, gains en attente (7 jours), retraits"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Wallet' }
+        '401': { $ref: '#/components/responses/Problem' }
+  /api/me/wallet/withdrawals:
+    post:
+      tags: [referrals]
+      operationId: requestWithdrawal
+      summary: "Demander un retrait (décaissement manuel par l'équipe, minimum 1 500 FCFA)"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WithdrawalRequest' }
+      responses:
+        '201':
+          description: Demande enregistrée, montant réservé
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Withdrawal' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '429': { $ref: '#/components/responses/Problem' }
+  /api/admin/withdrawals:
+    get:
+      tags: [admin]
+      operationId: adminListWithdrawals
+      summary: "Demandes de retrait (admin) avec signaux anti-fraude"
+      parameters:
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/WithdrawalStatus' } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/AdminWithdrawal' } }
+        '403': { $ref: '#/components/responses/Problem' }
+  /api/admin/withdrawals/{withdrawalId}/pay:
+    post:
+      tags: [admin]
+      operationId: adminMarkWithdrawalPaid
+      summary: "Marquer un retrait comme payé (après l'envoi manuel de l'argent)"
+      parameters:
+        - { name: withdrawalId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WithdrawalDecision' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminWithdrawal' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /api/admin/withdrawals/{withdrawalId}/reject:
+    post:
+      tags: [admin]
+      operationId: adminRejectWithdrawal
+      summary: "Refuser un retrait (le montant est recrédité au portefeuille)"
+      parameters:
+        - { name: withdrawalId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WithdrawalDecision' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminWithdrawal' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+  /api/admin/referrers/{handle}:
+    get:
+      tags: [admin]
+      operationId: adminGetReferrer
+      summary: "Fiche parrain d'un créateur (admin)"
+      parameters:
+        - $ref: '#/components/parameters/HandlePath'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminReferrer' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+  /api/admin/referrers/{handle}/collab:
+    put:
+      tags: [admin]
+      operationId: adminSetCollab
+      summary: "Accorder un taux collab négocié (≤ 60 %) jusqu'à une date d'expiration"
+      parameters:
+        - $ref: '#/components/parameters/HandlePath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CollabRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminReferrer' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+    delete:
+      tags: [admin]
+      operationId: adminEndCollab
+      summary: "Mettre fin à la collab (retour au taux de base 20 %)"
+      parameters:
+        - $ref: '#/components/parameters/HandlePath'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminReferrer' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+
 components:
   securitySchemes:
     session:
@@ -1040,6 +1209,7 @@ components:
         handle: { $ref: '#/components/schemas/Handle' }
         displayName: { type: string, minLength: 1, maxLength: 60 }
         acceptTerms: { type: boolean, const: true }
+        referralCode: { type: string, maxLength: 16, description: "Code du parrain (lien /r/{code}). Inconnu ou invalide → ignoré, l'inscription n'échoue jamais pour ça." }
     LoginRequest:
       type: object
       required: [email, password]
@@ -1066,9 +1236,10 @@ components:
       enum: [inactive, active, expired]
     Me:
       type: object
-      required: [id, email, handle, displayName, plan, published, onboardingCompleted, subscriptionStatus]
+      required: [id, email, handle, displayName, plan, published, onboardingCompleted, subscriptionStatus, admin]
       properties:
         id: { type: string, format: uuid }
+        admin: { type: boolean, description: "Accès à l'espace admin (emails listés dans ADMIN_EMAILS)." }
         email: { type: string }
         handle: { type: string }
         displayName: { type: string }
@@ -1664,6 +1835,165 @@ components:
               target: { type: string }
               title: { type: string }
               clicks: { type: integer, format: int64 }
+
+    # Parrainage & portefeuille (D51–D56)
+    Money: { type: integer, format: int64, description: "Montant en FCFA (XOF, entier)." }
+    RateBps: { type: integer, minimum: 0, maximum: 6000, description: "Taux en points de base (2000 = 20 %)." }
+    ReferralCodeInfo:
+      type: object
+      required: [code, referrerName]
+      properties:
+        code: { type: string }
+        referrerName: { type: string, description: "Nom affiché du parrain (il a lui-même partagé ce lien)." }
+    Collab:
+      type: object
+      required: [rateBps, expiresAt]
+      properties:
+        rateBps: { $ref: '#/components/schemas/RateBps' }
+        expiresAt: { type: string, format: date-time }
+    RefereeStatus:
+      type: string
+      enum: [registered, active, expired]
+    Referee:
+      type: object
+      required: [maskedName, joinedAt, status, earnedXof]
+      properties:
+        maskedName: { type: string, description: "Nom masqué (ex. « Aw*** D. »)." }
+        maskedPhone: { type: [string, 'null'], description: "Numéro masqué (ex. « +221 77 *** ** 67 »)." }
+        joinedAt: { type: string, format: date-time }
+        status: { $ref: '#/components/schemas/RefereeStatus' }
+        earnedXof: { $ref: '#/components/schemas/Money' }
+    ReferralEarningStatus:
+      type: string
+      enum: [held, available, blocked]
+    ReferralEarning:
+      type: object
+      required: [id, createdAt, refereeMaskedName, baseAmountXof, rateBps, amountXof, status, availableAt]
+      properties:
+        id: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        refereeMaskedName: { type: string }
+        baseAmountXof: { $ref: '#/components/schemas/Money' }
+        rateBps: { $ref: '#/components/schemas/RateBps' }
+        amountXof: { $ref: '#/components/schemas/Money' }
+        status: { $ref: '#/components/schemas/ReferralEarningStatus' }
+        availableAt: { type: string, format: date-time }
+        blockReason: { type: [string, 'null'], enum: [SELF_PAYMENT, null] }
+    ReferralStats:
+      type: object
+      required: [signups, activeReferees, realEarnedXof, currentMonthlyXof, potentialMonthlyXof]
+      properties:
+        signups: { type: integer }
+        activeReferees: { type: integer }
+        realEarnedXof: { $ref: '#/components/schemas/Money' }
+        currentMonthlyXof: { $ref: '#/components/schemas/Money' }
+        potentialMonthlyXof: { $ref: '#/components/schemas/Money' }
+    ReferralOverview:
+      type: object
+      required: [code, link, baseRateBps, effectiveRateBps, stats, referees, recentEarnings]
+      properties:
+        code: { type: string }
+        link: { type: string, description: "Lien à partager (…/r/{code})." }
+        baseRateBps: { $ref: '#/components/schemas/RateBps' }
+        effectiveRateBps: { $ref: '#/components/schemas/RateBps' }
+        collab: { oneOf: [ { $ref: '#/components/schemas/Collab' }, { type: 'null' } ] }
+        stats: { $ref: '#/components/schemas/ReferralStats' }
+        referees: { type: array, items: { $ref: '#/components/schemas/Referee' } }
+        recentEarnings: { type: array, items: { $ref: '#/components/schemas/ReferralEarning' } }
+    WithdrawalMethod:
+      type: string
+      enum: [wave, orange_money, free_money]
+    WithdrawalStatus:
+      type: string
+      enum: [REQUESTED, PAID, REJECTED]
+    Withdrawal:
+      type: object
+      required: [id, amountXof, method, maskedPhone, status, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        amountXof: { $ref: '#/components/schemas/Money' }
+        method: { $ref: '#/components/schemas/WithdrawalMethod' }
+        maskedPhone: { type: string }
+        status: { $ref: '#/components/schemas/WithdrawalStatus' }
+        createdAt: { type: string, format: date-time }
+        processedAt: { type: [string, 'null'], format: date-time }
+        note: { type: [string, 'null'] }
+    Wallet:
+      type: object
+      required: [availableXof, heldXof, pendingWithdrawalXof, totalEarnedXof, totalWithdrawnXof, minWithdrawalXof, holdDays, withdrawals]
+      properties:
+        availableXof: { $ref: '#/components/schemas/Money' }
+        heldXof: { $ref: '#/components/schemas/Money' }
+        pendingWithdrawalXof: { $ref: '#/components/schemas/Money' }
+        totalEarnedXof: { $ref: '#/components/schemas/Money' }
+        totalWithdrawnXof: { $ref: '#/components/schemas/Money' }
+        minWithdrawalXof: { $ref: '#/components/schemas/Money' }
+        holdDays: { type: integer }
+        nextReleaseAt: { type: [string, 'null'], format: date-time }
+        withdrawals: { type: array, items: { $ref: '#/components/schemas/Withdrawal' } }
+    WithdrawalRequest:
+      type: object
+      required: [amountXof, method, phone]
+      properties:
+        amountXof: { type: integer, format: int64, minimum: 1 }
+        method: { $ref: '#/components/schemas/WithdrawalMethod' }
+        phone: { type: string, maxLength: 40 }
+        idempotencyKey: { type: string, maxLength: 64 }
+    WithdrawalDecision:
+      type: object
+      properties:
+        providerRef: { type: string, maxLength: 128, description: "Référence de la transaction Wave/Orange Money (paiement)." }
+        note: { type: string, maxLength: 500, description: "Motif (obligatoire pour un refus, visible par le créateur)." }
+    FraudSignals:
+      type: object
+      required: [blockedSelfPayments, sameDayIpReferrals, referees, activeReferees]
+      properties:
+        blockedSelfPayments: { type: integer, description: "Gains bloqués : le filleul a payé avec le numéro du parrain." }
+        sameDayIpReferrals: { type: integer, description: "Filleuls inscrits le même jour depuis la même adresse IP qu'un autre filleul." }
+        referees: { type: integer }
+        activeReferees: { type: integer }
+    AdminWithdrawal:
+      type: object
+      required: [id, amountXof, method, phone, status, createdAt, creator, signals]
+      properties:
+        id: { type: string, format: uuid }
+        amountXof: { $ref: '#/components/schemas/Money' }
+        method: { $ref: '#/components/schemas/WithdrawalMethod' }
+        phone: { type: string, description: "Numéro complet (nécessaire pour envoyer l'argent)." }
+        status: { $ref: '#/components/schemas/WithdrawalStatus' }
+        createdAt: { type: string, format: date-time }
+        processedAt: { type: [string, 'null'], format: date-time }
+        providerRef: { type: [string, 'null'] }
+        note: { type: [string, 'null'] }
+        creator:
+          type: object
+          required: [userId, handle, displayName, email]
+          properties:
+            userId: { type: string, format: uuid }
+            handle: { type: string }
+            displayName: { type: string }
+            email: { type: string }
+        signals: { $ref: '#/components/schemas/FraudSignals' }
+    AdminReferrer:
+      type: object
+      required: [userId, handle, displayName, code, baseRateBps, effectiveRateBps, referees, activeReferees, totalEarnedXof]
+      properties:
+        userId: { type: string, format: uuid }
+        handle: { type: string }
+        displayName: { type: string }
+        code: { type: string }
+        baseRateBps: { $ref: '#/components/schemas/RateBps' }
+        effectiveRateBps: { $ref: '#/components/schemas/RateBps' }
+        collab: { oneOf: [ { $ref: '#/components/schemas/Collab' }, { type: 'null' } ] }
+        referees: { type: integer }
+        activeReferees: { type: integer }
+        totalEarnedXof: { $ref: '#/components/schemas/Money' }
+    CollabRequest:
+      type: object
+      required: [rateBps, expiresAt]
+      properties:
+        rateBps: { type: integer, minimum: 2000, maximum: 6000 }
+        expiresAt: { type: string, format: date-time }
 
 security:
   - session: []
